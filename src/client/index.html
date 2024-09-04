@@ -10,8 +10,75 @@
     <!-- Audio -->
     <audio id="split_cell" src="audio/split.mp3"></audio>
     <audio id="spawn_cell" src="audio/spawn.mp3"></audio>
+    <style>
+        /* Styles for the betting popup */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            width: 320px;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .modal-content {
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .modal-content h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .bet-options label {
+            display: flex;
+            justify-content: space-between;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+        }
+
+        .submit-bet {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+
+        .submit-bet:hover {
+            background-color: #45a049;
+        }
+
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #aaa;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: transparent;
+            border: none;
+        }
+    </style>
 </head>
 <body>
+    <!-- Existing Game Content -->
     <div id="gameAreaWrapper">
         <div id="status"><span class="title">Leaderboard</span></div>
         <div class="chatbox" id="chatbox">
@@ -24,41 +91,18 @@
         </div>
         <canvas tabindex="1" id="cvs"></canvas>
     </div>
-    <div id="startMenuWrapper">
-        <div id="startMenu">
-            <p>Open Agar</p>
-            <input type="text" tabindex="0" autofocus placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
-            <b class="input-error">Nick must be alphanumeric characters only!</b>
-            <br />
-            <a onclick="document.getElementById('spawn_cell').play();"><button id="startButton">Play</button></a>
-            <button id="spectateButton">Spectate</button>
-            <button id="settingsButton">Settings</button>
-            <br />
-            <div id="settings">
-                <h3>Settings</h3>
-                <ul>
-                    <label><input id="visBord" type="checkbox">Show border</label>
-                    <label><input id="showMass" type="checkbox">Show mass</label>
-                    <br />
-                    <label><input id="continuity" type="checkbox">Continue moving when mouse is off-screen</label>
-                    <br />
-                    <label><input id="roundFood" type="checkbox" checked>Rounded food</label>
-                    <label><input id="darkMode" type="checkbox">Toggle Dark Mode</label>
-                </ul>
-            </div>
-            <div id="instructions">
-                <h3>Gameplay</h3>
-                <ul>
-                    <li>Move your mouse on the screen to move your character.</li>
-                    <li>Eat food and other players in order to grow your character (food respawns every time a player eats it).</li>
-                    <li>A player's mass is the number of food particles eaten.</li>
-                    <li>Objective: Try to get fat and eat other players.</li>
-                </ul>
-            </div>
+
+    <!-- Betting Popup -->
+    <div id="betModal" class="modal">
+        <div class="modal-content">
+            <button class="close">&times;</button>
+            <h2>Select your bet in USDC</h2>
+            <div class="bet-options" id="betOptions"></div>
+            <button class="submit-bet" id="submitBet">Place Bet</button>
         </div>
     </div>
 
-    <!-- Pop-up HTML -->
+    <!-- Existing Pop-up for Match Over -->
     <div id="matchOverPopup" class="popup-overlay">
         <div class="popup-content">
             <h2>Match Over!</h2>
@@ -74,5 +118,69 @@
     <!-- JS -->
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
+
+    <script>
+        function createBettingPopup(options, callback) {
+            var modal = document.getElementById("betModal");
+            var closeBtn = document.getElementsByClassName("close")[0];
+            var betOptionsDiv = document.getElementById("betOptions");
+            var submitBtn = document.getElementById("submitBet");
+
+            // Clear previous bet options
+            betOptionsDiv.innerHTML = "";
+
+            // Add bet options dynamically
+            options.forEach(function(option) {
+                var label = document.createElement('label');
+                label.innerHTML = '<input type="radio" name="betAmount" value="' + option + '"> ' + option + ' USDC';
+                betOptionsDiv.appendChild(label);
+            });
+
+            // Display the modal
+            modal.style.display = "block";
+
+            // Close button event
+            closeBtn.onclick = function() {
+                modal.style.display = "none";
+            };
+
+            // Close modal if clicked outside
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            };
+
+            // Submit bet event
+            submitBtn.onclick = function() {
+                var selectedBet = document.querySelector('input[name="betAmount"]:checked');
+                if (selectedBet) {
+                    var betValue = selectedBet.value;
+                    modal.style.display = "none";
+                    callback(betValue);
+                } else {
+                    alert("Please select a bet amount!");
+                }
+            };
+        }
+
+        // Trigger popup on play
+        document.addEventListener('DOMContentLoaded', function() {
+            var playButton = document.getElementById('playBtn');
+
+            playButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                createBettingPopup([0.20, 0.50, 1, 3, 5], function(bet) {
+                    alert("You placed a bet of " + bet + " USDC!");
+                    processBet(bet);
+                });
+            });
+        });
+
+        function processBet(bet) {
+            console.log("Processing bet of " + bet + " USDC...");
+            // Logic to process the bet
+        }
+    </script>
 </body>
 </html>
