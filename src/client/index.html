@@ -57,6 +57,20 @@
             </div>
         </div>
     </div>
+
+    <!-- Pop-up HTML -->
+    <div id="matchOverPopup" class="popup-overlay">
+        <div class="popup-content">
+            <h2>Match Over!</h2>
+            <p id="leaderboardPosition"></p>
+            <p id="betAmount"></p>
+            <p id="wonAmount"></p>
+            <p id="platformFee" style="display: none;"></p>
+            <p id="gasFee" style="display: none;"></p>
+            <button onclick="closePopup()">OK</button>
+        </div>
+    </div>
+
     <!-- JS -->
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
