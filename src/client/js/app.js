@@ -395,5 +395,5 @@ function calculateWinnings(position, betAmount) {
 if (position === 1) return betAmount * 2; // First place gets double the bet
 if (position === 2) return betAmount * 1.5; // Second place gets 1.5x the bet
 if (position === 3) return betAmount; // Third place gets their bet amount back
-return 0; // Others get nothing
+return 0; // Others Get Nothing
 }
