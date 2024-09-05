@@ -94,22 +94,41 @@ window.onload = function () {
     var playButton = document.getElementById('startButton');
     var spectateButton = document.getElementById('spectateButton');
 
-    // Correct: Play button should show the betting popup and start the game
+    // Play button shows the popup
     playButton.onclick = function(event) {
         event.preventDefault();
-        // Show the betting popup first
+        // Call the betting popup function for the Play button
         createBettingPopup([0.10, 0.20, 1, 3, 5], function(bet) {
             console.log("You placed a bet of " + bet + " USDC!");
-            processBetAndStartGame(bet, 'player'); // Start the game as player after bet
+            processBetAndStartGame(bet); // Pass bet amount and start game
         });
     };
 
-    // Spectate button should directly start the game in spectate mode
+    // Spectate button skips the popup and starts the game directly
     spectateButton.onclick = function(event) {
         event.preventDefault();
-        startGame('spectator'); // No popup, just start spectating
+        startGame('spectator'); // Start spectating without popup
     };
 };
+
+function processBetAndStartGame(bet) {
+    var playerNameInput = document.getElementById('playerNameInput');
+    var nickErrorText = document.querySelector('#startMenu .input-error');
+
+    if (validNick()) {
+        nickErrorText.style.opacity = 0;
+        startGame('player'); // Game starts as player
+    } else {
+        nickErrorText.style.opacity = 1;
+    }
+}
+
+// Validates the player's name input
+function validNick() {
+    var playerNameInput = document.getElementById('playerNameInput');
+    var regex = /^\w*$/;
+    return regex.test(playerNameInput.value); // Valid name check
+}
 
 function processBetAndStartGame(bet) {
     console.log("Processing bet of " + bet + " USDC...");
