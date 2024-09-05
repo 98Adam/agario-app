@@ -94,7 +94,7 @@ window.onload = function () {
     var playButton = document.getElementById('startButton');
     var spectateButton = document.getElementById('spectateButton');
 
-    // Play button shows the popup
+    // Play button shows the Popup
     playButton.onclick = function(event) {
         event.preventDefault();
         // Call the betting popup function for the Play button
