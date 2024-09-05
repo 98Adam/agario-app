@@ -94,20 +94,21 @@ window.onload = function () {
     var playButton = document.getElementById('startButton');
     var spectateButton = document.getElementById('spectateButton');
 
-    // Play button triggers the betting popup
-    playButton.addEventListener('click', function(event) {
+    // Correct: Play button should show the betting popup and start the game
+    playButton.onclick = function(event) {
         event.preventDefault();
+        // Show the betting popup first
         createBettingPopup([0.10, 0.20, 1, 3, 5], function(bet) {
             console.log("You placed a bet of " + bet + " USDC!");
-            processBetAndStartGame(bet, 'player'); // Pass 'player' to indicate game start
+            processBetAndStartGame(bet, 'player'); // Start the game as player after bet
         });
-    });
+    };
 
-    // Spectate button directly starts spectating
-    spectateButton.addEventListener('click', function(event) {
+    // Spectate button should directly start the game in spectate mode
+    spectateButton.onclick = function(event) {
         event.preventDefault();
-        startGame('spectator');
-    });
+        startGame('spectator'); // No popup, just start spectating
+    };
 };
 
 function processBetAndStartGame(bet) {
