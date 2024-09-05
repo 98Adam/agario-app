@@ -91,16 +91,22 @@ function createBettingPopup(options, callback) {
 }
 
 window.onload = function () {
-    var playButton = document.getElementById('playBtn');
+    var btn = document.getElementById('startButton');
+    var spectateButton = document.getElementById('spectateButton');
 
-    // Trigger the betting popup when the play button is clicked
-    playButton.addEventListener('click', function(event) {
-        event.preventDefault();
+    // Trigger the betting popup when "Play" is clicked
+    btn.addEventListener('click', function(event) {
+        event.preventDefault();  // Prevent the default form submission or button behavior
         createBettingPopup([0.10, 0.20, 1, 3, 5], function(bet) {
             alert("You placed a bet of " + bet + " USDC!");
-            // Proceed to start the game after the bet is placed
-            processBetAndStartGame(bet);
+            processBetAndStartGame(bet); // Start the game after placing the bet
         });
+    });
+
+    // Spectate button behavior (start game without betting)
+    spectateButton.addEventListener('click', function(event) {
+        event.preventDefault();
+        startGame('spectator');
     });
 };
 
