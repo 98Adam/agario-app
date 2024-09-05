@@ -370,30 +370,3 @@ player.y = global.game.height / 2;
 
 socket.emit('windowResized', { screenWidth: global.screen.width, screenHeight: global.screen.height });
 }
-
-/** Pop-up Functions **/
-
-function showMatchOverPopup(position, betAmount, matchId) {
-const popup = document.getElementById('matchOverPopup');
-document.getElementById('leaderboardPosition').innerText = Your Position: ${position};
-document.getElementById('betAmount').innerText = Bet Amount: ${betAmount} USDC;
-document.getElementById('wonAmount').innerText = You Won: ${calculateWinnings(position, betAmount)} USDC;
-
-// Display the popup
-popup.style.visibility = 'visible';
-popup.style.opacity = '1';
-}
-
-function closePopup() {
-const popup = document.getElementById('matchOverPopup');
-popup.style.visibility = 'hidden';
-popup.style.opacity = '0';
-}
-
-function calculateWinnings(position, betAmount) {
-// Example logic: you can customize this based on how winnings are calculated
-if (position === 1) return betAmount * 2; // First place gets double the bet
-if (position === 2) return betAmount * 1.5; // Second place gets 1.5x the bet
-if (position === 3) return betAmount; // Third place gets their bet amount back
-return 0; // Others Get Nothing
-}
