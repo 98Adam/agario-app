@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
+    <!-- Meta Properties -->
     <meta charset="UTF-8">
     <title>Open Agar</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <!-- CSS -->
     <link rel="stylesheet" href="css/main.css" />
-    <link rel="stylesheet" href="css/bet-popup.css" /> <!-- Link to the initial bet popup CSS -->
+    <!-- Audio -->
     <audio id="split_cell" src="audio/split.mp3"></audio>
     <audio id="spawn_cell" src="audio/spawn.mp3"></audio>
 </head>
@@ -28,7 +30,8 @@
             <input type="text" tabindex="0" autofocus placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
             <b class="input-error">Nick must be alphanumeric characters only!</b>
             <br />
-            <a onclick="document.getElementById('spawn_cell').play();"><button id="startButton">Play</button></a>
+            <!-- The Play Button -->
+            <a><button id="startButton">Play</button></a>
             <button id="spectateButton">Spectate</button>
             <button id="settingsButton">Settings</button>
             <br />
@@ -69,19 +72,39 @@
         </div>
     </div>
 
-    <!-- Betting Popup HTML -->
-    <div id="betModal" class="modal">
-        <div class="modal-content">
-            <button class="close">&times;</button>
-            <h2>Select your bet in USDC</h2>
-            <div class="bet-options" id="betOptions"></div>
-            <button class="submit-bet" id="submitBet">Place Bet</button>
-        </div>
-    </div>
+    <!-- iframe to load the betting popup -->
+    <iframe id="bettingPopupIframe" src="HTMLs/PopupInitial.html" style="display:none; width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 100;"></iframe>
 
     <!-- JS -->
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
-    <script src="js/bet-popup.js"></script>
+
+    <!-- Betting popup logic -->
+    <script>
+        document.getElementById('startButton').addEventListener('click', function() {
+            // Show the betting popup when the Play button is clicked
+            document.getElementById('bettingPopupIframe').style.display = 'block';
+        });
+
+        // Listen for the message from the betting popup
+        window.addEventListener('message', function(event) {
+            if (event.data.betConfirmed) {
+                // Hide the popup after the bet is confirmed
+                document.getElementById('bettingPopupIframe').style.display = 'none';
+
+                // Start the game after bet confirmation
+                startGameWithBet(event.data.betAmount);
+            }
+        });
+
+        function startGameWithBet(betAmount) {
+            console.log('Game starting with a bet of ' + betAmount + ' USDC');
+            // Play the spawn sound
+            document.getElementById('spawn_cell').play();
+
+            // Call the function to start the game from app.js (if applicable)
+            startGame();
+        }
+    </script>
 </body>
 </html>

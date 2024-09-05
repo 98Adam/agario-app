@@ -17,10 +17,10 @@ html, body, canvas {
 }
 
 div {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -khtml-user-select: none;
-    -ms-user-select: none;
+    -webkit-user-select: none; /* webkit (safari, chrome) browsers */
+    -moz-user-select: none; /* mozilla browsers */
+    -khtml-user-select: none; /* webkit (konqueror) browsers */
+    -ms-user-select: none; /* IE10+ */
 }
 
 #split {
@@ -124,6 +124,8 @@ div {
     width: 350px;
     padding: 20px;
     border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
     background-color: white;
     box-sizing: border-box;
 }
@@ -143,6 +145,8 @@ div {
     transition: box-shadow 0.3s, border 0.3s;
     box-sizing: border-box;
     border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
     margin-bottom: 10px;
     outline: none;
 }
@@ -170,6 +174,8 @@ div {
     -webkit-box-shadow: inset 0 -2px #28be68;
     box-shadow: inset 0 -2px #28be68;
     border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
     margin-bottom: 10px;
 }
 
@@ -200,6 +206,8 @@ div {
     -webkit-box-shadow: inset 0 -2px #28be68;
     box-shadow: inset 0 -2px #28be68;
     border-radius: 5px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
     margin-bottom: 10px;
 }
 
@@ -275,7 +283,7 @@ input [type="image"]:focus{
  border-style: none;
 }
 
-/* Pop-up styles (both for match over and bet popup) */
+/* Pop-up styles */
 .popup-overlay {
     position: fixed;
     top: 0;
@@ -289,7 +297,7 @@ input [type="image"]:focus{
     visibility: hidden;
     opacity: 0;
     transition: visibility 0s, opacity 0.5s;
-    z-index: 3;
+    z-index: 3; /* Ensures pop-up is above other elements */
 }
 
 .popup-content {
@@ -320,113 +328,5 @@ input [type="image"]:focus{
 }
 
 .popup-content button:hover {
-    background-color: #0056b3;
-}
-
-/* Betting popup specific styles */
-.modal-content {
-    padding: 20px;
-    text-align: center;
-    position: relative;
-}
-
-.modal-content h2 {
-    font-size: 18px;
-    margin-bottom: 20px;
-}
-
-.bet-options {
-    margin: 15px 0;
-}
-
-.bet-options label {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: #f9f9f9;
-    padding: 10px;
-    border-radius: 12px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    border: 1px solid #ddd;
-}
-
-.bet-options label:hover {
-    background-color: #f1f1f1;
-}
-
-.submit-bet {
-    background-color: #4CAF50;
-    color: white;
-    padding: 12px 20px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    width: 100%;
-}
-
-.submit-bet:hover {
-    background-color: #45a049;
-}
-
-.close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    color: #aaa;
-    font-size: 20px;
-    font-weight: bold;
-    cursor: pointer;
-    background-color: transparent;
-    border: none;
-}
-
-.close:hover {
-    color: black;
-}
-
-.modal-footer {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px;
-    background-color: #f1f1f1;
-    border-top: 1px solid #ddd;
-}
-
-.modal-footer button {
-    flex: 1;
-    margin: 0 5px;
-    border-radius: 12px;
-    border: none;
-    padding: 10px;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.modal-footer button:first-child {
-    background-color: #ddd;
-}
-
-.modal-footer button:last-child {
-    background-color: #e74c3c;
-    color: white;
-}
-
-.modal-footer button:last-child:hover {
-    background-color: #c0392b;
-}
-
-#playBtn {
-    padding: 15px 30px;
-    background-color: #007BFF;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 18px;
-}
-
-#playBtn:hover {
     background-color: #0056b3;
 }
