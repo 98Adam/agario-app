@@ -68,7 +68,7 @@
     "@types/sat": "^0.0.32"
   },
   "engines": {
-    "node": "21.x"
+    "node": "16.x"
   }
 }
 
