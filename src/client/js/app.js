@@ -46,7 +46,67 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
+// Betting Popup Function
+function createBettingPopup(options, callback) {
+    var modal = document.getElementById("betModal");
+    var span = document.getElementsByClassName("close")[0];
+    var betOptionsDiv = document.getElementById("betOptions");
+    var submitBtn = document.getElementById("submitBet");
+
+    // Clear previous options
+    betOptionsDiv.innerHTML = "";
+
+    // Add new betting options
+    options.forEach(function(option) {
+        var label = document.createElement('label');
+        label.innerHTML = '<input type="radio" name="betAmount" value="' + option + '"> ' + option + ' USDC';
+        betOptionsDiv.appendChild(label);
+    });
+
+    // Show the popup
+    modal.style.display = "block";
+
+    // Close the popup
+    span.onclick = function() {
+        modal.style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    // Handle bet submission
+    submitBtn.onclick = function() {
+        var selectedBet = document.querySelector('input[name="betAmount"]:checked');
+        if (selectedBet) {
+            var betValue = selectedBet.value;
+            modal.style.display = "none";
+            callback(betValue);
+        } else {
+            alert("Please select a bet amount!");
+        }
+    }
+}
+
 window.onload = function () {
+    var playButton = document.getElementById('playBtn');
+
+    // Trigger the betting popup when the play button is clicked
+    playButton.addEventListener('click', function(event) {
+        event.preventDefault();
+        createBettingPopup([0.10, 0.20, 1, 3, 5], function(bet) {
+            alert("You placed a bet of " + bet + " USDC!");
+            // Proceed to start the game after the bet is placed
+            processBetAndStartGame(bet);
+        });
+    });
+};
+
+function processBetAndStartGame(bet) {
+    console.log("Processing bet of " + bet + " USDC...");
+
     var btn = document.getElementById('startButton'),
         btnS = document.getElementById('spectateButton'),
         nickErrorText = document.querySelector('#startMenu .input-error');
@@ -86,10 +146,9 @@ window.onload = function () {
             }
         }
     });
-};
+}
 
-// TODO: Break out into GameControls.
-
+// Game settings and logic
 var playerConfig = {
     border: 6,
     textColor: '#FFFFFF',
@@ -146,13 +205,12 @@ $("#split").click(function () {
 
 function handleDisconnect() {
     socket.close();
-    if (!global.kicked) { // We have a more specific error message
+    if (!global.kicked) {
         render.drawErrorMessage('Disconnected!', graph, global.screen);
     }
 }
 
 function setupSocket(socket) {
-    // Handle ping.
     socket.on('pongcheck', function () {
         var latency = Date.now() - global.startPingTime;
         debug('Latency: ' + latency + 'ms');
@@ -183,34 +241,32 @@ function setupSocket(socket) {
         resize();
     });
 
-    socket.on('playerDied', (data) => {
+    socket.on('playerDied', function (data) {
         const player = isUnnamedCell(data.playerEatenName) ? 'An unnamed cell' : data.playerEatenName;
         window.chat.addSystemLine('{GAME} - <b>' + (player) + '</b> was eaten');
     });
 
-    socket.on('playerDisconnect', (data) => {
+    socket.on('playerDisconnect', function (data) {
         window.chat.addSystemLine('{GAME} - <b>' + (isUnnamedCell(data.name) ? 'An unnamed cell' : data.name) + '</b> disconnected.');
     });
 
-    socket.on('playerJoin', (data) => {
+    socket.on('playerJoin', function (data) {
         window.chat.addSystemLine('{GAME} - <b>' + (isUnnamedCell(data.name) ? 'An unnamed cell' : data.name) + '</b> joined.');
     });
 
-    socket.on('leaderboard', (data) => {
+    socket.on('leaderboard', function (data) {
         leaderboard = data.leaderboard;
         var status = '<span class="title">Leaderboard</span>';
         for (var i = 0; i < leaderboard.length; i++) {
             status += '<br />';
-            if (leaderboard[i].id == player.id) {
-                if (leaderboard[i].name.length !== 0)
-                    status += '<span class="me">' + (i + 1) + '. ' + leaderboard[i].name + "</span>";
-                else
-                    status += '<span class="me">' + (i + 1) + ". An unnamed cell</span>";
+            if (leaderboard[i].id === player.id) {
+                status += leaderboard[i].name.length !== 0 ?
+                          `<span class="me">${i + 1}. ${leaderboard[i].name}</span>` :
+                          `<span class="me">${i + 1}. An unnamed cell</span>`;
             } else {
-                if (leaderboard[i].name.length !== 0)
-                    status += (i + 1) + '. ' + leaderboard[i].name;
-                else
-                    status += (i + 1) + '. An unnamed cell';
+                status += leaderboard[i].name.length !== 0 ?
+                          `${i + 1}. ${leaderboard[i].name}` :
+                          `${i + 1}. An unnamed cell`;
             }
         }
         document.getElementById('status').innerHTML = status;
@@ -225,7 +281,7 @@ function setupSocket(socket) {
     });
 
     socket.on('serverTellPlayerMove', function (playerData, userData, foodsList, massList, virusList) {
-        if (global.playerType == 'player') {
+        if (global.playerType === 'player') {
             player.x = playerData.x;
             player.y = playerData.y;
             player.hue = playerData.hue;
@@ -248,152 +304,146 @@ function setupSocket(socket) {
         const matchId = global.matchId || 'unknown'; // Replace with actual match ID if available
 
         // Trigger the match over pop-up
-showMatchOverPopup(position, betAmount, matchId);
+        showMatchOverPopup(position, betAmount, matchId);
 
-window.setTimeout(() => {
-    document.getElementById('gameAreaWrapper').style.opacity = 0;
-    document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
-    if (global.animLoopHandle) {
-        window.cancelAnimationFrame(global.animLoopHandle);
-        global.animLoopHandle = undefined;
-    }
-}, 2500);
-});
+        window.setTimeout(() => {
+            document.getElementById('gameAreaWrapper').style.opacity = 0;
+            document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
+            if (global.animLoopHandle) {
+                window.cancelAnimationFrame(global.animLoopHandle);
+                global.animLoopHandle = undefined;
+            }
+        }, 2500);
+    });
 
-socket.on('kick', function (reason) {
-global.gameStart = false;
-global.kicked = true;
-if (reason !== '') {
-    render.drawErrorMessage('You were kicked for: ' + reason, graph, global.screen);
-} else {
-    render.drawErrorMessage('You were kicked!', graph, global.screen);
-}
-socket.close();
-});
+    socket.on('kick', function (reason) {
+        global.gameStart = false;
+        global.kicked = true;
+        render.drawErrorMessage(reason !== '' ? `You were kicked for: ${reason}` : 'You were kicked!', graph, global.screen);
+        socket.close();
+    });
 }
 
 const isUnnamedCell = (name) => name.length < 1;
 
 const getPosition = (entity, player, screen) => {
-return {
-x: entity.x - player.x + screen.width / 2,
-y: entity.y - player.y + screen.height / 2
-};
+    return {
+        x: entity.x - player.x + screen.width / 2,
+        y: entity.y - player.y + screen.height / 2
+    };
 };
 
 window.requestAnimFrame = (function () {
-return window.requestAnimationFrame ||
-window.webkitRequestAnimationFrame ||
-window.mozRequestAnimationFrame ||
-window.msRequestAnimationFrame ||
-function (callback) {
-    window.setTimeout(callback, 1000 / 60);
-};
+    return window.requestAnimationFrame ||
+           window.webkitRequestAnimationFrame ||
+           window.mozRequestAnimationFrame ||
+           window.msRequestAnimationFrame ||
+           function (callback) {
+               window.setTimeout(callback, 1000 / 60);
+           };
 })();
 
-window.cancelAnimFrame = (function (handle) {
-return window.cancelAnimationFrame ||
-window.mozCancelAnimationFrame;
+window.cancelAnimFrame = (function () {
+    return window.cancelAnimationFrame || window.mozCancelAnimationFrame;
 })();
 
 function animloop() {
-global.animLoopHandle = window.requestAnimFrame(animloop);
-gameLoop();
+    global.animLoopHandle = window.requestAnimFrame(animloop);
+    gameLoop();
 }
 
 function gameLoop() {
-if (global.gameStart) {
-graph.fillStyle = global.backgroundColor;
-graph.fillRect(0, 0, global.screen.width, global.screen.height);
+    if (global.gameStart) {
+        graph.fillStyle = global.backgroundColor;
+        graph.fillRect(0, 0, global.screen.width, global.screen.height);
 
-render.drawGrid(global, player, global.screen, graph);
-foods.forEach(food => {
-    let position = getPosition(food, player, global.screen);
-    render.drawFood(position, food, graph);
-});
-fireFood.forEach(fireFood => {
-    let position = getPosition(fireFood, player, global.screen);
-    render.drawFireFood(position, fireFood, playerConfig, graph);
-});
-viruses.forEach(virus => {
-    let position = getPosition(virus, player, global.screen);
-    render.drawVirus(position, virus, graph);
-});
+        render.drawGrid(global, player, global.screen, graph);
 
-let borders = { // Position of the borders on the screen
-    left: global.screen.width / 2 - player.x,
-    right: global.screen.width / 2 + global.game.width - player.x,
-    top: global.screen.height / 2 - player.y,
-    bottom: global.screen.height / 2 + global.game.height - player.y
-};
-if (global.borderDraw) {
-    render.drawBorder(borders, graph);
-}
-
-var cellsToDraw = [];
-for (var i = 0; i < users.length; i++) {
-    let color = 'hsl(' + users[i].hue + ', 100%, 50%)';
-    let borderColor = 'hsl(' + users[i].hue + ', 100%, 45%)';
-    for (var j = 0; j < users[i].cells.length; j++) {
-        cellsToDraw.push({
-            color: color,
-            borderColor: borderColor,
-            mass: users[i].cells[j].mass,
-            name: users[i].name,
-            radius: users[i].cells[j].radius,
-            x: users[i].cells[j].x - player.x + global.screen.width / 2,
-            y: users[i].cells[j].y - player.y + global.screen.height / 2
+        foods.forEach(food => {
+            let position = getPosition(food, player, global.screen);
+            render.drawFood(position, food, graph);
         });
-    }
-}
-cellsToDraw.sort(function (obj1, obj2) {
-    return obj1.mass - obj2.mass;
-});
-render.drawCells(cellsToDraw, playerConfig, global.toggleMassState, borders, graph);
 
-socket.emit('0', window.canvas.target); // playerSendTarget "Heartbeat".
-}
+        fireFood.forEach(food => {
+            let position = getPosition(food, player, global.screen);
+            render.drawFireFood(position, food, playerConfig, graph);
+        });
+
+        viruses.forEach(virus => {
+            let position = getPosition(virus, player, global.screen);
+            render.drawVirus(position, virus, graph);
+        });
+
+        let borders = {
+            left: global.screen.width / 2 - player.x,
+            right: global.screen.width / 2 + global.game.width - player.x,
+            top: global.screen.height / 2 - player.y,
+            bottom: global.screen.height / 2 + global.game.height - player.y
+        };
+
+        if (global.borderDraw) {
+            render.drawBorder(borders, graph);
+        }
+
+        let cellsToDraw = users.flatMap(user => {
+            let color = `hsl(${user.hue}, 100%, 50%)`;
+            let borderColor = `hsl(${user.hue}, 100%, 45%)`;
+            return user.cells.map(cell => ({
+                color,
+                borderColor,
+                mass: cell.mass,
+                name: user.name,
+                radius: cell.radius,
+                x: cell.x - player.x + global.screen.width / 2,
+                y: cell.y - player.y + global.screen.height / 2
+            }));
+        });
+
+        cellsToDraw.sort((obj1, obj2) => obj1.mass - obj2.mass);
+        render.drawCells(cellsToDraw, playerConfig, global.toggleMassState, borders, graph);
+
+        socket.emit('0', window.canvas.target); // playerSendTarget "Heartbeat".
+    }
 }
 
 window.addEventListener('resize', resize);
 
 function resize() {
-if (!socket) return;
+    if (!socket) return;
 
-player.screenWidth = c.width = global.screen.width = global.playerType == 'player' ? window.innerWidth : global.game.width;
-player.screenHeight = c.height = global.screen.height = global.playerType == 'player' ? window.innerHeight : global.game.height;
+    player.screenWidth = c.width = global.screen.width = global.playerType === 'player' ? window.innerWidth : global.game.width;
+    player.screenHeight = c.height = global.screen.height = global.playerType === 'player' ? window.innerHeight : global.game.height;
 
-if (global.playerType == 'spectator') {
-player.x = global.game.width / 2;
-player.y = global.game.height / 2;
-}
+    if (global.playerType === 'spectator') {
+        player.x = global.game.width / 2;
+        player.y = global.game.height / 2;
+    }
 
-socket.emit('windowResized', { screenWidth: global.screen.width, screenHeight: global.screen.height });
+    socket.emit('windowResized', { screenWidth: global.screen.width, screenHeight: global.screen.height });
 }
 
 /** Pop-up Functions **/
 
 function showMatchOverPopup(position, betAmount, matchId) {
-const popup = document.getElementById('matchOverPopup');
-document.getElementById('leaderboardPosition').innerText = `Your Position: ${position}`;
-document.getElementById('betAmount').innerText = `Bet Amount: ${betAmount} USDC`;
-document.getElementById('wonAmount').innerText = `You Won: ${calculateWinnings(position, betAmount)} USDC`;
+    const popup = document.getElementById('matchOverPopup');
+    document.getElementById('leaderboardPosition').innerText = `Your Position: ${position}`;
+    document.getElementById('betAmount').innerText = `Bet Amount: ${betAmount} USDC`;
+    document.getElementById('wonAmount').innerText = `You Won: ${calculateWinnings(position, betAmount)} USDC`;
 
-// Display the popup
-popup.style.visibility = 'visible';
-popup.style.opacity = '1';
+    // Display the popup
+    popup.style.visibility = 'visible';
+    popup.style.opacity = '1';
 }
 
 function closePopup() {
-const popup = document.getElementById('matchOverPopup');
-popup.style.visibility = 'hidden';
-popup.style.opacity = '0';
+    const popup = document.getElementById('matchOverPopup');
+    popup.style.visibility = 'hidden';
+    popup.style.opacity = '0';
 }
 
 function calculateWinnings(position, betAmount) {
-// Example logic: you can customize this based on how winnings are calculated
-if (position === 1) return betAmount * 2; // First place gets double the bet
-if (position === 2) return betAmount * 1.5; // Second place gets 1.5x the bet
-if (position === 3) return betAmount; // Third place gets their bet amount back
-return 0; // Others get nothing
+    if (position === 1) return betAmount * 2;
+    if (position === 2) return betAmount * 1.5;
+    if (position === 3) return betAmount;
+    return 0;
 }
