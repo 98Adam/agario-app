@@ -55,9 +55,26 @@ window.onload = function () {
         startGame('spectator');
     };
 
-    btn.onclick = function () {
+    btn.onclick = async function () {
         if (validNick()) {
             nickErrorText.style.opacity = 0;
+
+            // Fetch the popup HTML from the server API
+            try {
+                const response = await fetch('/api/v1/popup'); // Adjust the path if needed
+                const popupContent = await response.text(); // Assuming the API returns HTML
+
+                // Inject the popup content into the iframe
+                const iframe = document.getElementById('bettingPopupIframe');
+                iframe.style.display = 'block'; // Show the iframe
+                iframe.contentWindow.document.open();
+                iframe.contentWindow.document.write(popupContent);
+                iframe.contentWindow.document.close();
+            } catch (error) {
+                console.error('Error fetching popup content:', error);
+            }
+
+            // Start the game
             startGame('player');
         } else {
             nickErrorText.style.opacity = 1;
