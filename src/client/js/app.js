@@ -11,7 +11,7 @@ var debug = function (args) {
     if (console && console.log) {
         console.log(args);
     }
-};
+};ss
 
 // Check if the user is on a mobile device
 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
