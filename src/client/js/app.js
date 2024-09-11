@@ -49,13 +49,7 @@ function validNick() {
 
 window.onload = function () {
     var btn = document.getElementById('startButton');
-    var btnS = document.getElementById('spectateButton');
     var nickErrorText = document.querySelector('#startMenu .input-error');
-
-    // Spectate button
-    btnS.onclick = function () {
-        startGame('spectator');
-    };
 
     // Start button
     btn.onclick = function () {
