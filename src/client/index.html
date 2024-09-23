@@ -27,7 +27,7 @@
     <div id="startMenuWrapper">
         <div id="startMenu">
             <p>Join Crypto.io</p>
-            <input type="text" tabindex="0" autofocus placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
+            <input type="text" tabindex="0" placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
             <b class="input-error">Nick must be alphanumeric characters only!</b>
             <br />
             <!-- The Play Button -->
@@ -104,6 +104,11 @@
             // Call the function to start the game from app.js (if applicable)
             startGame();
         }
+
+        // Focus on the player name input when the page loads
+        window.onload = function() {
+            document.getElementById('playerNameInput').focus();
+        };
     </script>
 </body>
 </html>
