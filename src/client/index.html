@@ -87,12 +87,17 @@
 
         // Listen for the message from the betting popup
         window.addEventListener('message', function(event) {
-            if (event.data.betConfirmed) {
-                // Hide the popup after the bet is confirmed
-                document.getElementById('bettingPopupIframe').style.display = 'none';
+            if (event.origin === "https://oasys-app-d5458db8ddb3.herokuapp.com") { // Ensure you check the origin
+                if (event.data.betConfirmed) {
+                    // Hide the popup after the bet is confirmed
+                    document.getElementById('bettingPopupIframe').style.display = 'none';
 
-                // Start the game after bet confirmation
-                startGameWithBet(event.data.betAmount);
+                    // Start the game after bet confirmation
+                    startGameWithBet(event.data.betAmount);
+                } else if (event.data.error) {
+                    // Show custom modal with error message
+                    showErrorModal(event.data.errorMessage);
+                }
             }
         });
 
@@ -103,6 +108,25 @@
 
             // Call the function to start the game from app.js (if applicable)
             startGame();
+        }
+
+        function showErrorModal(message) {
+            // Implementation for showing a custom modal
+            const errorModal = document.createElement('div');
+            errorModal.className = 'error-modal';
+            errorModal.innerHTML = `
+                <div class="modal-content">
+                    <p>${message}</p>
+                    <button onclick="closeErrorModal()">OK</button>
+                </div>`;
+            document.body.appendChild(errorModal);
+        }
+
+        function closeErrorModal() {
+            const modal = document.querySelector('.error-modal');
+            if (modal) {
+                modal.remove();
+            }
         }
 
         // Focus on the player name input when the page loads
