@@ -2,7 +2,6 @@
 'use strict';
 
 const express = require('express');
-const helmet = require('helmet'); 
 const app = express();
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
@@ -14,7 +13,7 @@ const chatRepository = require('./repositories/chat-repository');
 const config = require('../../config');
 const util = require('./lib/util');
 const mapUtils = require('./map/map');
-const { getPosition } = require("./lib/entityUtils");
+const {getPosition} = require("./lib/entityUtils");
 
 let map = new mapUtils.Map(config);
 
@@ -26,29 +25,6 @@ let leaderboard = [];
 let leaderboardChanged = false;
 
 const Vector = SAT.Vector;
-
-// Add helmet middleware for security headers including CSP
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'", "https:"],
-            imgSrc: ["'self'", "data:", "*"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:", "*.metamask.io", "*.googleusercontent.com", "*.infura.io", "*.etherscan.io"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https:", "*.metamask.io"],
-            frameSrc: ["'self'", "*.metamask.io", "https://oasys-app-d5458db8ddb3.herokuapp.com"],
-            frameAncestors: ["'self'", "*.metamask.io", "https://oasys-app-d5458db8ddb3.herokuapp.com"],
-            connectSrc: ["'self'", "https:", "wss:", "*.metamask.io", "*.infura.io", "*.etherscan.io"],
-            objectSrc: ["'none'"],
-            upgradeInsecureRequests: [],
-            workerSrc: ["'self'", "blob:"],
-            childSrc: ["'self'", "*.metamask.io", "https:"],
-            mediaSrc: ["'self'", "https:", "*.metamask.io"],
-            fontSrc: ["'self'", "https:", "*.metamask.io"],
-        },
-    },
-    crossOriginEmbedderPolicy: false,
-    crossOriginOpenerPolicy: false,
-}));
 
 app.use(express.static(__dirname + '/../client'));
 
@@ -72,6 +48,7 @@ function generateSpawnpoint() {
     return getPosition(config.newPlayerInitialPosition === 'farthest', radius, map.players.data)
 }
 
+
 const addPlayer = (socket) => {
     var currentPlayer = new mapUtils.playerUtils.Player(socket.id);
 
@@ -93,6 +70,7 @@ const addPlayer = (socket) => {
             io.emit('playerJoin', { name: currentPlayer.name });
             console.log('Total players: ' + map.players.data.length);
         }
+
     });
 
     socket.on('pingcheck', () => {
