@@ -73,7 +73,7 @@
     </div>
 
     <!-- iframe to load the betting popup -->
-    <iframe id="bettingPopupIframe" src="https://oasys-app-d5458db8ddb3.herokuapp.com/api/v1/popup" style="display:none; width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 100;"></iframe>
+    <iframe id="bettingPopupIframe" src="https://rcadya-app-dee7ef0f2cc9.herokuapp.com/api/v1/popup" style="display:none; width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 100;"></iframe>
 
     <!-- JS -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -88,7 +88,7 @@
 
         // Listen for the message from the betting popup
         window.addEventListener('message', function(event) {
-            if (event.origin === "https://oasys-app-d5458db8ddb3.herokuapp.com") { // Ensure you check the origin
+            if (event.origin === "https://rcadya-app-dee7ef0f2cc9.herokuapp.com/") { // Ensure you check the origin
                 if (event.data.betConfirmed) {
                     // Hide the popup after the bet is confirmed
                     document.getElementById('bettingPopupIframe').style.display = 'none';
