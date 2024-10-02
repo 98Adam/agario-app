@@ -81,6 +81,9 @@
 
     <!-- Betting popup logic -->
     <script>
+
+        const allowedOrigins = ["https://rcadya-app-dee7ef0f2cc9.herokuapp.com", "http://localhost:3000"];
+
         document.getElementById('startButton').addEventListener('click', function() {
             // Show the betting popup when the Play button is clicked
             document.getElementById('bettingPopupIframe').style.display = 'block';
