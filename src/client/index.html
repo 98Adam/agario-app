@@ -91,7 +91,7 @@
 
         // Listen for the message from the betting popup
         window.addEventListener('message', function(event) {
-            if (event.origin === "https://rcadya-app-dee7ef0f2cc9.herokuapp.com/") { // Ensure you check the origin
+            if (event.origin === "https://rcadya-app-dee7ef0f2cc9.herokuapp.com") { // Ensure you check the origin
                 if (event.data.betConfirmed) {
                     // Hide the popup after the bet is confirmed
                     document.getElementById('bettingPopupIframe').style.display = 'none';
