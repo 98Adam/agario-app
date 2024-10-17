@@ -29,7 +29,7 @@
         <div id="startMenu">
             <p>Join Crypto.io</p>
             <input type="text" tabindex="0" placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
-            <b class="input-error">Nick must be alphanumeric characters only!</b>
+            <b class="input-error">Nickname can only be an alphanumerical combination</b>
             <br />
             <!-- The Play Button -->
             <a><button id="startButton">Play</button></a>
@@ -110,7 +110,7 @@
             // Play the spawn sound
             document.getElementById('spawn_cell').play();
 
-            // Call the function to start the game from app.js (if applicable)
+            // Call the function to start the game from app.js
             startGame();
         }
 
