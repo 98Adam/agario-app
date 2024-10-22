@@ -59,7 +59,23 @@
         </div>
     </div>
 
-    <!-- Pop-up HTML -->
+    <!-- Pop-up HTML for betting -->
+    <div id="betModal" class="popup-overlay" style="display: none;">
+        <div class="popup-content">
+            <h2>Select your bet in USDC</h2>
+            <div id="betOptions">
+                <label><input type="radio" name="betAmount" value="0.1"> 0.1 USDC</label><br />
+                <label><input type="radio" name="betAmount" value="0.2"> 0.2 USDC</label><br />
+                <label><input type="radio" name="betAmount" value="1"> 1 USDC</label><br />
+                <label><input type="radio" name="betAmount" value="3"> 3 USDC</label><br />
+                <label><input type="radio" name="betAmount" value="5"> 5 USDC</label><br />
+            </div>
+            <button id="submitBet">Place Bet</button>
+            <button id="closePopup">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Pop-up HTML for match results -->
     <div id="matchOverPopup" class="popup-overlay">
         <div class="popup-content">
             <h2>Match Over!</h2>
@@ -72,68 +88,47 @@
         </div>
     </div>
 
-    <!-- iframe to load the betting popup -->
-    <iframe id="startPopup" src="https://rcadya-app-dee7ef0f2cc9.herokuapp.com/api/v1/popup" style="display:none; width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 100;"></iframe>
-
     <!-- JS -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="js/app.js"></script>
 
-    <!-- Betting popup logic -->
+    <!-- Betting logic -->
     <script>
 
-        const allowedOrigins = ["https://rcadya-app-dee7ef0f2cc9.herokuapp.com", "http://localhost:3000"];
-
+        // Show the betting popup when the Play button is clicked
         document.getElementById('startButton').addEventListener('click', function() {
-            // Show the betting popup when the Play button is clicked
-            document.getElementById('startPopup').style.display = 'block';
+            document.getElementById('betModal').style.display = 'block';
         });
 
-        // Listen for the message from the betting popup
-        window.addEventListener('message', function(event) {
-            if (event.origin === "https://rcadya-app-dee7ef0f2cc9.herokuapp.com") { // Ensure you check the origin
-                if (event.data.betConfirmed) {
-                    // Hide the popup after the bet is confirmed
-                    document.getElementById('startPopup').style.display = 'none';
+        // Handle bet submission
+        document.getElementById('submitBet').addEventListener('click', function() {
+            const selectedBet = document.querySelector('input[name="betAmount"]:checked');
+            if (selectedBet) {
+                const betAmount = selectedBet.value;
+                console.log('Bet selected:', betAmount);
 
-                    // Start the game after bet confirmation
-                    startGameWithBet(event.data.betAmount);
-                } else if (event.data.error) {
-                    // Show custom modal with error message
-                    showErrorModal(event.data.errorMessage);
-                }
+                // Close the bet modal
+                document.getElementById('betModal').style.display = 'none';
+
+                // Start the game with the selected bet
+                startGameWithBet(betAmount);
+            } else {
+                alert("Please select a bet amount.");
             }
         });
 
+        // Close the popup when cancel is clicked
+        document.getElementById('closePopup').addEventListener('click', function() {
+            document.getElementById('betModal').style.display = 'none';
+        });
+
+        // Start the game with a bet
         function startGameWithBet(betAmount) {
-            console.log('Game starting with a bet of ' + betAmount + ' USDC');
+            console.log('Starting game with a bet of ' + betAmount + ' USDC');
             // Play the spawn sound
             document.getElementById('spawn_cell').play();
-
             // Call the function to start the game from app.js
             startGame();
-        }
-
-        function showErrorModal(message) {
-            // Implementation for showing a custom modal
-            const errorModal = document.createElement('div');
-            errorModal.className = 'error-modal';
-            errorModal.innerHTML = `
-                <div class="modal-content">
-                    <p>${message}</p>
-                    <button id="errorOkBtn">OK</button>
-                </div>`;
-            document.body.appendChild(errorModal);
-
-            // Attach event handler to close the error modal
-            document.getElementById("errorOkBtn").addEventListener('click', closeErrorModal);
-        }
-
-        function closeErrorModal() {
-            const modal = document.querySelector('.error-modal');
-            if (modal) {
-                modal.remove();
-            }
         }
 
         // Focus on the player name input when the page loads
