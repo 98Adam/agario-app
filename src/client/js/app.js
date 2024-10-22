@@ -13,7 +13,6 @@ var debug = function (args) {
     }
 };
 
-// Check if the user is on a mobile device
 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
@@ -31,9 +30,8 @@ function startGame(type) {
         socket = io({ query: "type=" + type });
         setupSocket(socket);
     }
-    if (!global.animLoopHandle) {
+    if (!global.animLoopHandle)
         animloop();
-    }
     socket.emit('respawn');
     window.chat.socket = socket;
     window.chat.registerFunctions();
@@ -41,31 +39,34 @@ function startGame(type) {
     global.socket = socket;
 }
 
-// Checks if the nickname is valid (alphanumeric and underscores only)
+// Checks if the nick chosen contains valid alphanumeric characters (and underscores).
 function validNick() {
     var regex = /^\w*$/;
+    debug('Regex Test', regex.exec(playerNameInput.value));
     return regex.exec(playerNameInput.value) !== null;
 }
 
 window.onload = function () {
-    var btn = document.getElementById('startButton');
-    var nickErrorText = document.querySelector('#startMenu .input-error');
 
-    // Start button
+    var btn = document.getElementById('startButton'),
+        btnS = document.getElementById('spectateButton'),
+        nickErrorText = document.querySelector('#startMenu .input-error');
+
+    btnS.onclick = function () {
+        startGame('spectator');
+    };
+
     btn.onclick = function () {
+
+        // Checks if the nick is valid.
         if (validNick()) {
             nickErrorText.style.opacity = 0;
-
-            // Show the betting popup iframe when Play button is clicked
-            const iframe = document.getElementById('bettingPopupIframe');
-            iframe.style.display = 'block'; // Show the iframe
-
+            startGame('player');
         } else {
             nickErrorText.style.opacity = 1;
         }
     };
 
-    // Settings menu toggle
     var settingsMenu = document.getElementById('settingsButton');
     var settings = document.getElementById('settings');
 
@@ -77,9 +78,9 @@ window.onload = function () {
         }
     };
 
-    // Handle pressing Enter key to start the game
     playerNameInput.addEventListener('keypress', function (e) {
         var key = e.which || e.keyCode;
+
         if (key === global.KEY_ENTER) {
             if (validNick()) {
                 nickErrorText.style.opacity = 0;
@@ -89,30 +90,10 @@ window.onload = function () {
             }
         }
     });
-
-    // Listen for message from the betting popup and start the game upon bet confirmation
-    window.addEventListener('message', function (event) {
-        if (event.data.betConfirmed) {
-            // Hide the popup after the bet is confirmed
-            document.getElementById('bettingPopupIframe').style.display = 'none';
-
-            // Start the game after bet confirmation
-            startGameWithBet(event.data.betAmount);
-        }
-    });
 };
 
-// Start game with the confirmed bet amount
-function startGameWithBet(betAmount) {
-    console.log('Game starting with a bet of ' + betAmount + ' USDC');
-    // Play the spawn sound
-    document.getElementById('spawn_cell').play();
+// TODO: Break out into GameControls.
 
-    // Start the game
-    startGame('player');
-}
-
-// Player configurations
 var playerConfig = {
     border: 6,
     textColor: '#FFFFFF',
@@ -121,7 +102,6 @@ var playerConfig = {
     defaultSize: 30
 };
 
-// Initialize player object
 var player = {
     id: -1,
     x: global.screen.width / 2,
@@ -143,7 +123,6 @@ global.target = target;
 window.canvas = new Canvas();
 window.chat = new ChatClient();
 
-// Event listeners for UI elements
 var visibleBorderSetting = document.getElementById('visBord');
 visibleBorderSetting.onchange = settings.toggleBorder;
 
@@ -159,7 +138,6 @@ roundFoodSetting.onchange = settings.toggleRoundFood;
 var c = window.canvas.cv;
 var graph = c.getContext('2d');
 
-// Event handlers for split and feed actions
 $("#feed").click(function () {
     socket.emit('1');
     window.canvas.reenviar = false;
@@ -170,25 +148,27 @@ $("#split").click(function () {
     window.canvas.reenviar = false;
 });
 
-// Socket event handlers and game logic
 function handleDisconnect() {
     socket.close();
-    if (!global.kicked) {
+    if (!global.kicked) { // We have a more specific error message 
         render.drawErrorMessage('Disconnected!', graph, global.screen);
     }
 }
 
+// socket stuff.
 function setupSocket(socket) {
     // Handle ping.
     socket.on('pongcheck', function () {
         var latency = Date.now() - global.startPingTime;
+        debug('Latency: ' + latency + 'ms');
         window.chat.addSystemLine('Ping: ' + latency + 'ms');
     });
 
+    // Handle error.
     socket.on('connect_error', handleDisconnect);
     socket.on('disconnect', handleDisconnect);
 
-    // On welcome, initialize player
+    // Handle connection.
     socket.on('welcome', function (playerSettings, gameSizes) {
         player = playerSettings;
         player.name = global.playerName;
@@ -210,21 +190,23 @@ function setupSocket(socket) {
         resize();
     });
 
-    socket.on('playerDied', function (data) {
+    socket.on('playerDied', (data) => {
         const player = isUnnamedCell(data.playerEatenName) ? 'An unnamed cell' : data.playerEatenName;
-        window.chat.addSystemLine('{GAME} - <b>' + player + '</b> was eaten');
+        //const killer = isUnnamedCell(data.playerWhoAtePlayerName) ? 'An unnamed cell' : data.playerWhoAtePlayerName;
+
+        //window.chat.addSystemLine('{GAME} - <b>' + (player) + '</b> was eaten by <b>' + (killer) + '</b>');
+        window.chat.addSystemLine('{GAME} - <b>' + (player) + '</b> was eaten');
     });
 
-    socket.on('playerDisconnect', function (data) {
+    socket.on('playerDisconnect', (data) => {
         window.chat.addSystemLine('{GAME} - <b>' + (isUnnamedCell(data.name) ? 'An unnamed cell' : data.name) + '</b> disconnected.');
     });
 
-    socket.on('playerJoin', function (data) {
+    socket.on('playerJoin', (data) => {
         window.chat.addSystemLine('{GAME} - <b>' + (isUnnamedCell(data.name) ? 'An unnamed cell' : data.name) + '</b> joined.');
     });
 
-    // Handle leaderboard updates
-    socket.on('leaderboard', function (data) {
+    socket.on('leaderboard', (data) => {
         leaderboard = data.leaderboard;
         var status = '<span class="title">Leaderboard</span>';
         for (var i = 0; i < leaderboard.length; i++) {
@@ -241,6 +223,7 @@ function setupSocket(socket) {
                     status += (i + 1) + '. An unnamed cell';
             }
         }
+        //status += '<br />Players: ' + data.players;
         document.getElementById('status').innerHTML = status;
     });
 
@@ -248,11 +231,12 @@ function setupSocket(socket) {
         window.chat.addSystemLine(data);
     });
 
+    // Chat.
     socket.on('serverSendPlayerChat', function (data) {
         window.chat.addChatLine(data.sender, data.message, false);
     });
 
-    // Handle game state updates
+    // Handle movement.
     socket.on('serverTellPlayerMove', function (playerData, userData, foodsList, massList, virusList) {
         if (global.playerType == 'player') {
             player.x = playerData.x;
@@ -267,19 +251,10 @@ function setupSocket(socket) {
         fireFood = massList;
     });
 
-    // Player death handling
+    // Death.
     socket.on('RIP', function () {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
-
-        // Get the player's position in the leaderboard
-        const position = leaderboard.findIndex(entry => entry.id === player.id) + 1;
-        const betAmount = 1; // Example: Replace with the actual bet amount for this match
-        const matchId = global.matchId || 'unknown'; // Replace with actual match ID if available
-
-        // Trigger the match over pop-up
-        showMatchOverPopup(position, betAmount, matchId);
-
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
             document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
@@ -295,24 +270,23 @@ function setupSocket(socket) {
         global.kicked = true;
         if (reason !== '') {
             render.drawErrorMessage('You were kicked for: ' + reason, graph, global.screen);
-        } else {
+        }
+        else {
             render.drawErrorMessage('You were kicked!', graph, global.screen);
         }
         socket.close();
     });
 }
 
-// Utility functions
 const isUnnamedCell = (name) => name.length < 1;
 
 const getPosition = (entity, player, screen) => {
     return {
         x: entity.x - player.x + screen.width / 2,
         y: entity.y - player.y + screen.height / 2
-    };
-};
+    }
+}
 
-// Animation frame
 window.requestAnimFrame = (function () {
     return window.requestAnimationFrame ||
         window.webkitRequestAnimationFrame ||
@@ -352,12 +326,13 @@ function gameLoop() {
             render.drawVirus(position, virus, graph);
         });
 
-        let borders = {
+
+        let borders = { // Position of the borders on the screen
             left: global.screen.width / 2 - player.x,
             right: global.screen.width / 2 + global.game.width - player.x,
             top: global.screen.height / 2 - player.y,
             bottom: global.screen.height / 2 + global.game.height - player.y
-        };
+        }
         if (global.borderDraw) {
             render.drawBorder(borders, graph);
         }
@@ -387,7 +362,6 @@ function gameLoop() {
     }
 }
 
-// Handle screen resize
 window.addEventListener('resize', resize);
 
 function resize() {
@@ -402,31 +376,4 @@ function resize() {
     }
 
     socket.emit('windowResized', { screenWidth: global.screen.width, screenHeight: global.screen.height });
-}
-
-/** Pop-up Functions **/
-
-function showMatchOverPopup(position, betAmount, matchId) {
-    const popup = document.getElementById('matchOverPopup');
-    document.getElementById('leaderboardPosition').innerText = `Your Position: ${position}`;
-    document.getElementById('betAmount').innerText = `Bet Amount: ${betAmount} USDC`;
-    document.getElementById('wonAmount').innerText = `You Won: ${calculateWinnings(position, betAmount)} USDC`;
-
-    // Display the popup
-    popup.style.visibility = 'visible';
-    popup.style.opacity = '1';
-}
-
-function closePopup() {
-    const popup = document.getElementById('matchOverPopup');
-    popup.style.visibility = 'hidden';
-    popup.style.opacity = '0';
-}
-
-function calculateWinnings(position, betAmount) {
-    // Example logic: you can customize this based on how winnings are calculated
-    if (position === 1) return betAmount * 2; // First place gets double the bet
-    if (position === 2) return betAmount * 1.5; // Second place gets 1.5x the bet
-    if (position === 3) return betAmount; // Third place gets their bet amount back
-    return 0; // Others get nothing
 }
