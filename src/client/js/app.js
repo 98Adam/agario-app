@@ -48,17 +48,11 @@ function validNick() {
 
 window.onload = function () {
 
-    var btn = document.getElementById('startButton'),
-        btnS = document.getElementById('spectateButton'),
-        nickErrorText = document.querySelector('#startMenu .input-error');
+    var btn = document.getElementById('startButton');
+    var nickErrorText = document.querySelector('#startMenu .input-error');
 
-    btnS.onclick = function () {
-        startGame('spectator');
-    };
-
+    // Start button functionality
     btn.onclick = function () {
-
-        // Checks if the nick is valid.
         if (validNick()) {
             nickErrorText.style.opacity = 0;
             startGame('player');
@@ -67,6 +61,7 @@ window.onload = function () {
         }
     };
 
+    // Settings menu toggle
     var settingsMenu = document.getElementById('settingsButton');
     var settings = document.getElementById('settings');
 
@@ -78,6 +73,7 @@ window.onload = function () {
         }
     };
 
+    // Handle pressing Enter key to start the game
     playerNameInput.addEventListener('keypress', function (e) {
         var key = e.which || e.keyCode;
 
@@ -92,8 +88,7 @@ window.onload = function () {
     });
 };
 
-// TODO: Break out into GameControls.
-
+// Player configuration
 var playerConfig = {
     border: 6,
     textColor: '#FFFFFF',
@@ -102,6 +97,7 @@ var playerConfig = {
     defaultSize: 30
 };
 
+// Initialize player object
 var player = {
     id: -1,
     x: global.screen.width / 2,
@@ -123,6 +119,7 @@ global.target = target;
 window.canvas = new Canvas();
 window.chat = new ChatClient();
 
+// Event listeners for UI elements
 var visibleBorderSetting = document.getElementById('visBord');
 visibleBorderSetting.onchange = settings.toggleBorder;
 
@@ -138,6 +135,7 @@ roundFoodSetting.onchange = settings.toggleRoundFood;
 var c = window.canvas.cv;
 var graph = c.getContext('2d');
 
+// Event handlers for split and feed actions
 $("#feed").click(function () {
     socket.emit('1');
     window.canvas.reenviar = false;
@@ -150,12 +148,12 @@ $("#split").click(function () {
 
 function handleDisconnect() {
     socket.close();
-    if (!global.kicked) { // We have a more specific error message 
+    if (!global.kicked) {
         render.drawErrorMessage('Disconnected!', graph, global.screen);
     }
 }
 
-// socket stuff.
+// Socket event handling
 function setupSocket(socket) {
     // Handle ping.
     socket.on('pongcheck', function () {
@@ -164,11 +162,11 @@ function setupSocket(socket) {
         window.chat.addSystemLine('Ping: ' + latency + 'ms');
     });
 
-    // Handle error.
+    // Handle connection and errors.
     socket.on('connect_error', handleDisconnect);
     socket.on('disconnect', handleDisconnect);
 
-    // Handle connection.
+    // On welcome, initialize player
     socket.on('welcome', function (playerSettings, gameSizes) {
         player = playerSettings;
         player.name = global.playerName;
@@ -192,10 +190,7 @@ function setupSocket(socket) {
 
     socket.on('playerDied', (data) => {
         const player = isUnnamedCell(data.playerEatenName) ? 'An unnamed cell' : data.playerEatenName;
-        //const killer = isUnnamedCell(data.playerWhoAtePlayerName) ? 'An unnamed cell' : data.playerWhoAtePlayerName;
-
-        //window.chat.addSystemLine('{GAME} - <b>' + (player) + '</b> was eaten by <b>' + (killer) + '</b>');
-        window.chat.addSystemLine('{GAME} - <b>' + (player) + '</b> was eaten');
+        window.chat.addSystemLine('{GAME} - <b>' + player + '</b> was eaten');
     });
 
     socket.on('playerDisconnect', (data) => {
@@ -206,6 +201,7 @@ function setupSocket(socket) {
         window.chat.addSystemLine('{GAME} - <b>' + (isUnnamedCell(data.name) ? 'An unnamed cell' : data.name) + '</b> joined.');
     });
 
+    // Handle leaderboard updates
     socket.on('leaderboard', (data) => {
         leaderboard = data.leaderboard;
         var status = '<span class="title">Leaderboard</span>';
@@ -223,7 +219,6 @@ function setupSocket(socket) {
                     status += (i + 1) + '. An unnamed cell';
             }
         }
-        //status += '<br />Players: ' + data.players;
         document.getElementById('status').innerHTML = status;
     });
 
@@ -231,12 +226,12 @@ function setupSocket(socket) {
         window.chat.addSystemLine(data);
     });
 
-    // Chat.
+    // Chat
     socket.on('serverSendPlayerChat', function (data) {
         window.chat.addChatLine(data.sender, data.message, false);
     });
 
-    // Handle movement.
+    // Handle movement updates
     socket.on('serverTellPlayerMove', function (playerData, userData, foodsList, massList, virusList) {
         if (global.playerType == 'player') {
             player.x = playerData.x;
@@ -251,7 +246,7 @@ function setupSocket(socket) {
         fireFood = massList;
     });
 
-    // Death.
+    // Player death handling
     socket.on('RIP', function () {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
@@ -326,8 +321,7 @@ function gameLoop() {
             render.drawVirus(position, virus, graph);
         });
 
-
-        let borders = { // Position of the borders on the screen
+        let borders = {
             left: global.screen.width / 2 - player.x,
             right: global.screen.width / 2 + global.game.width - player.x,
             top: global.screen.height / 2 - player.y,
@@ -362,6 +356,7 @@ function gameLoop() {
     }
 }
 
+// Handle screen resize
 window.addEventListener('resize', resize);
 
 function resize() {
@@ -369,11 +364,6 @@ function resize() {
 
     player.screenWidth = c.width = global.screen.width = global.playerType == 'player' ? window.innerWidth : global.game.width;
     player.screenHeight = c.height = global.screen.height = global.playerType == 'player' ? window.innerHeight : global.game.height;
-
-    if (global.playerType == 'spectator') {
-        player.x = global.game.width / 2;
-        player.y = global.game.height / 2;
-    }
 
     socket.emit('windowResized', { screenWidth: global.screen.width, screenHeight: global.screen.height });
 }
