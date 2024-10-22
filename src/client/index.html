@@ -3,8 +3,7 @@
 <head>
     <!-- Meta Properties -->
     <meta charset="UTF-8">
-    <title>Crypto.io</title>
-    <link rel="icon" href="https://i.postimg.cc/0yNgYZ4f/rcadya-favicon.png" type="image/x-icon">
+    <title>Open Agar</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
     <!-- CSS -->
     <link rel="stylesheet" href="css/main.css" />
@@ -27,12 +26,12 @@
     </div>
     <div id="startMenuWrapper">
         <div id="startMenu">
-            <p>Join Crypto.io</p>
-            <input type="text" tabindex="0" placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
-            <b class="input-error">Nickname can only be an alphanumerical combination</b>
+            <p>Open Agar</p>
+            <input type="text" tabindex="0" autofocus placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
+            <b class="input-error">Nick must be alphanumeric characters only!</b>
             <br />
-            <!-- The Play Button -->
-            <a><button id="startButton">Play</button></a>
+            <a onclick="document.getElementById('spawn_cell').play();"><button id="startButton">Play</button></a>
+            <button id="spectateButton">Spectate</button>
             <button id="settingsButton">Settings</button>
             <br />
             <div id="settings">
@@ -58,21 +57,8 @@
             </div>
         </div>
     </div>
-
     <!-- JS -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
-
-    <script>
-        document.getElementById('startButton').addEventListener('click', function() {
-            startGame();
-            document.getElementById('spawn_cell').play(); // Play the spawn sound
-        });
-
-        // Focus on the player name input when the page loads
-        window.onload = function() {
-            document.getElementById('playerNameInput').focus();
-        };
-    </script>
 </body>
 </html>

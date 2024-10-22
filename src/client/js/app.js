@@ -150,7 +150,7 @@ $("#split").click(function () {
 
 function handleDisconnect() {
     socket.close();
-    if (!global.kicked) { // We have a more specific error message
+    if (!global.kicked) { // We have a more specific error message 
         render.drawErrorMessage('Disconnected!', graph, global.screen);
     }
 }
