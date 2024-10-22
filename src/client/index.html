@@ -59,22 +59,6 @@
         </div>
     </div>
 
-    <!-- Pop-up HTML for betting -->
-    <div id="betModal" class="popup-overlay" style="display: none;">
-        <div class="popup-content">
-            <h2>Select your bet in USDC</h2>
-            <div id="betOptions">
-                <label><input type="radio" name="betAmount" value="0.1"> 0.1 USDC</label><br />
-                <label><input type="radio" name="betAmount" value="0.2"> 0.2 USDC</label><br />
-                <label><input type="radio" name="betAmount" value="1"> 1 USDC</label><br />
-                <label><input type="radio" name="betAmount" value="3"> 3 USDC</label><br />
-                <label><input type="radio" name="betAmount" value="5"> 5 USDC</label><br />
-            </div>
-            <button id="submitBet">Place Bet</button>
-            <button id="closePopup">Cancel</button>
-        </div>
-    </div>
-
     <!-- Pop-up HTML for match results -->
     <div id="matchOverPopup" class="popup-overlay">
         <div class="popup-content">
@@ -92,44 +76,7 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="js/app.js"></script>
 
-    <!-- Betting logic -->
     <script>
-
-        // Show the betting popup when the Play button is clicked
-        document.getElementById('startButton').addEventListener('click', function() {
-            document.getElementById('betModal').style.display = 'block';
-        });
-
-        // Handle bet submission
-        document.getElementById('submitBet').addEventListener('click', function() {
-            const selectedBet = document.querySelector('input[name="betAmount"]:checked');
-            if (selectedBet) {
-                const betAmount = selectedBet.value;
-                console.log('Bet selected:', betAmount);
-
-                // Close the bet modal
-                document.getElementById('betModal').style.display = 'none';
-
-                // Start the game with the selected bet
-                startGameWithBet(betAmount);
-            } else {
-                alert("Please select a bet amount.");
-            }
-        });
-
-        // Close the popup when cancel is clicked
-        document.getElementById('closePopup').addEventListener('click', function() {
-            document.getElementById('betModal').style.display = 'none';
-        });
-
-        // Start the game with a bet
-        function startGameWithBet(betAmount) {
-            console.log('Starting game with a bet of ' + betAmount + ' USDC');
-            // Play the spawn sound
-            document.getElementById('spawn_cell').play();
-            // Call the function to start the game from app.js
-            startGame();
-        }
 
         // Focus on the player name input when the page loads
         window.onload = function() {
