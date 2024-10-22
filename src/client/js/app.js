@@ -13,34 +13,25 @@ var debug = function (args) {
     }
 };
 
-// Check if the user is on a mobile device
 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
 
-// Function to start the game
 function startGame(type) {
-    global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25); // Sanitize player name
+    global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25);
     global.playerType = type;
 
     global.screen.width = window.innerWidth;
     global.screen.height = window.innerHeight;
 
-    document.getElementById('startMenuWrapper').style.maxHeight = '0px'; // Hide the start menu
-    document.getElementById('gameAreaWrapper').style.opacity = 1; // Show the game area
-
-    // Connect to the socket only if it hasn't been initialized yet
+    document.getElementById('startMenuWrapper').style.maxHeight = '0px';
+    document.getElementById('gameAreaWrapper').style.opacity = 1;
     if (!socket) {
         socket = io({ query: "type=" + type });
         setupSocket(socket);
     }
-
-    // Start the animation loop if it hasn't started yet
-    if (!global.animLoopHandle) {
+    if (!global.animLoopHandle)
         animloop();
-    }
-
-    // Emit respawn and set up chat and canvas
     socket.emit('respawn');
     window.chat.socket = socket;
     window.chat.registerFunctions();
@@ -48,46 +39,52 @@ function startGame(type) {
     global.socket = socket;
 }
 
-// Checks if the nickname is valid (alphanumeric and underscores only)
+// Checks if the nick chosen contains valid alphanumeric characters (and underscores).
 function validNick() {
     var regex = /^\w*$/;
+    debug('Regex Test', regex.exec(playerNameInput.value));
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Initialize the game UI and events when the page is loaded
 window.onload = function () {
-    var startButton = document.getElementById('startButton');
-    var nickErrorText = document.querySelector('#startMenu .input-error');
 
-    // Start button click event
-    startButton.onclick = function () {
+    var btn = document.getElementById('startButton'),
+        btnS = document.getElementById('spectateButton'),
+        nickErrorText = document.querySelector('#startMenu .input-error');
+
+    btnS.onclick = function () {
+        startGame('spectator');
+    };
+
+    btn.onclick = function () {
+
+        // Checks if the nick is valid.
         if (validNick()) {
-            nickErrorText.style.opacity = 0; // Hide error message
-            startGame('player'); // Start the game when a valid nickname is entered
+            nickErrorText.style.opacity = 0;
+            startGame('player');
         } else {
-            nickErrorText.style.opacity = 1; // Show error message for invalid nickname
+            nickErrorText.style.opacity = 1;
         }
     };
 
-    // Settings menu toggle
-    var settingsButton = document.getElementById('settingsButton');
+    var settingsMenu = document.getElementById('settingsButton');
     var settings = document.getElementById('settings');
 
-    settingsButton.onclick = function () {
-        if (settings.style.maxHeight === '300px') {
-            settings.style.maxHeight = '0px'; // Hide settings
+    settingsMenu.onclick = function () {
+        if (settings.style.maxHeight == '300px') {
+            settings.style.maxHeight = '0px';
         } else {
-            settings.style.maxHeight = '300px'; // Show settings
+            settings.style.maxHeight = '300px';
         }
     };
 
-    // Handle pressing Enter key to start the game
     playerNameInput.addEventListener('keypress', function (e) {
         var key = e.which || e.keyCode;
+
         if (key === global.KEY_ENTER) {
             if (validNick()) {
                 nickErrorText.style.opacity = 0;
-                startGame('player'); // Start the game if Enter is pressed and nickname is valid
+                startGame('player');
             } else {
                 nickErrorText.style.opacity = 1;
             }
@@ -95,7 +92,8 @@ window.onload = function () {
     });
 };
 
-// Player configurations
+// TODO: Break out into GameControls.
+
 var playerConfig = {
     border: 6,
     textColor: '#FFFFFF',
@@ -104,7 +102,6 @@ var playerConfig = {
     defaultSize: 30
 };
 
-// Initialize player object
 var player = {
     id: -1,
     x: global.screen.width / 2,
@@ -126,7 +123,6 @@ global.target = target;
 window.canvas = new Canvas();
 window.chat = new ChatClient();
 
-// Event listeners for UI elements
 var visibleBorderSetting = document.getElementById('visBord');
 visibleBorderSetting.onchange = settings.toggleBorder;
 
@@ -142,7 +138,6 @@ roundFoodSetting.onchange = settings.toggleRoundFood;
 var c = window.canvas.cv;
 var graph = c.getContext('2d');
 
-// Event handlers for split and feed actions
 $("#feed").click(function () {
     socket.emit('1');
     window.canvas.reenviar = false;
@@ -153,25 +148,27 @@ $("#split").click(function () {
     window.canvas.reenviar = false;
 });
 
-// Socket event handlers and game logic
 function handleDisconnect() {
     socket.close();
-    if (!global.kicked) {
+    if (!global.kicked) { // We have a more specific error message
         render.drawErrorMessage('Disconnected!', graph, global.screen);
     }
 }
 
+// socket stuff.
 function setupSocket(socket) {
     // Handle ping.
     socket.on('pongcheck', function () {
         var latency = Date.now() - global.startPingTime;
+        debug('Latency: ' + latency + 'ms');
         window.chat.addSystemLine('Ping: ' + latency + 'ms');
     });
 
+    // Handle error.
     socket.on('connect_error', handleDisconnect);
     socket.on('disconnect', handleDisconnect);
 
-    // On welcome, initialize player
+    // Handle connection.
     socket.on('welcome', function (playerSettings, gameSizes) {
         player = playerSettings;
         player.name = global.playerName;
@@ -193,21 +190,23 @@ function setupSocket(socket) {
         resize();
     });
 
-    socket.on('playerDied', function (data) {
+    socket.on('playerDied', (data) => {
         const player = isUnnamedCell(data.playerEatenName) ? 'An unnamed cell' : data.playerEatenName;
-        window.chat.addSystemLine('{GAME} - <b>' + player + '</b> was eaten');
+        //const killer = isUnnamedCell(data.playerWhoAtePlayerName) ? 'An unnamed cell' : data.playerWhoAtePlayerName;
+
+        //window.chat.addSystemLine('{GAME} - <b>' + (player) + '</b> was eaten by <b>' + (killer) + '</b>');
+        window.chat.addSystemLine('{GAME} - <b>' + (player) + '</b> was eaten');
     });
 
-    socket.on('playerDisconnect', function (data) {
+    socket.on('playerDisconnect', (data) => {
         window.chat.addSystemLine('{GAME} - <b>' + (isUnnamedCell(data.name) ? 'An unnamed cell' : data.name) + '</b> disconnected.');
     });
 
-    socket.on('playerJoin', function (data) {
+    socket.on('playerJoin', (data) => {
         window.chat.addSystemLine('{GAME} - <b>' + (isUnnamedCell(data.name) ? 'An unnamed cell' : data.name) + '</b> joined.');
     });
 
-    // Handle leaderboard updates
-    socket.on('leaderboard', function (data) {
+    socket.on('leaderboard', (data) => {
         leaderboard = data.leaderboard;
         var status = '<span class="title">Leaderboard</span>';
         for (var i = 0; i < leaderboard.length; i++) {
@@ -224,6 +223,7 @@ function setupSocket(socket) {
                     status += (i + 1) + '. An unnamed cell';
             }
         }
+        //status += '<br />Players: ' + data.players;
         document.getElementById('status').innerHTML = status;
     });
 
@@ -231,11 +231,12 @@ function setupSocket(socket) {
         window.chat.addSystemLine(data);
     });
 
+    // Chat.
     socket.on('serverSendPlayerChat', function (data) {
         window.chat.addChatLine(data.sender, data.message, false);
     });
 
-    // Handle game state updates
+    // Handle movement.
     socket.on('serverTellPlayerMove', function (playerData, userData, foodsList, massList, virusList) {
         if (global.playerType == 'player') {
             player.x = playerData.x;
@@ -250,19 +251,10 @@ function setupSocket(socket) {
         fireFood = massList;
     });
 
-    // Player death handling
+    // Death.
     socket.on('RIP', function () {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
-
-        // Get the player's position in the leaderboard
-        const position = leaderboard.findIndex(entry => entry.id === player.id) + 1;
-        const betAmount = 1; // Example: Replace with the actual bet amount for this match
-        const matchId = global.matchId || 'unknown'; // Replace with actual match ID if available
-
-        // Trigger the match over pop-up
-        showMatchOverPopup(position, betAmount, matchId);
-
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
             document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
@@ -278,24 +270,23 @@ function setupSocket(socket) {
         global.kicked = true;
         if (reason !== '') {
             render.drawErrorMessage('You were kicked for: ' + reason, graph, global.screen);
-        } else {
+        }
+        else {
             render.drawErrorMessage('You were kicked!', graph, global.screen);
         }
         socket.close();
     });
 }
 
-// Utility functions
 const isUnnamedCell = (name) => name.length < 1;
 
 const getPosition = (entity, player, screen) => {
     return {
         x: entity.x - player.x + screen.width / 2,
         y: entity.y - player.y + screen.height / 2
-    };
-};
+    }
+}
 
-// Animation frame
 window.requestAnimFrame = (function () {
     return window.requestAnimationFrame ||
         window.webkitRequestAnimationFrame ||
@@ -335,12 +326,13 @@ function gameLoop() {
             render.drawVirus(position, virus, graph);
         });
 
-        let borders = {
+
+        let borders = { // Position of the borders on the screen
             left: global.screen.width / 2 - player.x,
             right: global.screen.width / 2 + global.game.width - player.x,
             top: global.screen.height / 2 - player.y,
             bottom: global.screen.height / 2 + global.game.height - player.y
-        };
+        }
         if (global.borderDraw) {
             render.drawBorder(borders, graph);
         }
@@ -370,7 +362,6 @@ function gameLoop() {
     }
 }
 
-// Handle screen resize
 window.addEventListener('resize', resize);
 
 function resize() {
@@ -385,31 +376,4 @@ function resize() {
     }
 
     socket.emit('windowResized', { screenWidth: global.screen.width, screenHeight: global.screen.height });
-}
-
-/** End-game Pop-up Functions **/
-
-function showMatchOverPopup(position, betAmount, matchId) {
-    const popup = document.getElementById('matchOverPopup');
-    document.getElementById('leaderboardPosition').innerText = `Your Position: ${position}`;
-    document.getElementById('betAmount').innerText = `Bet Amount: ${betAmount} USDC`;
-    document.getElementById('wonAmount').innerText = `You Won: ${calculateWinnings(position, betAmount)} USDC`;
-
-    // Display the popup
-    popup.style.visibility = 'visible';
-    popup.style.opacity = '1';
-}
-
-function closePopup() {
-    const popup = document.getElementById('matchOverPopup');
-    popup.style.visibility = 'hidden';
-    popup.style.opacity = '0';
-}
-
-function calculateWinnings(position, betAmount) {
-    // Example logic: you can customize this based on how winnings are calculated
-    if (position === 1) return betAmount * 2; // First place gets double the bet
-    if (position === 2) return betAmount * 1.5; // Second place gets 1.5x the bet
-    if (position === 3) return betAmount; // Third place gets their bet amount back
-    return 0; // Others get nothing
 }
