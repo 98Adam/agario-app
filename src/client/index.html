@@ -3,7 +3,8 @@
 <head>
     <!-- Meta Properties -->
     <meta charset="UTF-8">
-    <title>Open Agar</title>
+    <title>Crypto.io</title>
+    <link rel="icon" href="https://i.postimg.cc/0yNgYZ4f/rcadya-favicon.png" type="image/x-icon">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
     <!-- CSS -->
     <link rel="stylesheet" href="css/main.css" />
@@ -26,12 +27,12 @@
     </div>
     <div id="startMenuWrapper">
         <div id="startMenu">
-            <p>Open Agar</p>
-            <input type="text" tabindex="0" autofocus placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
-            <b class="input-error">Nick must be alphanumeric characters only!</b>
+            <p>Join Crypto.io</p>
+            <input type="text" tabindex="0" placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
+            <b class="input-error">Nickname can only be an alphanumerical combination</b>
             <br />
-            <a onclick="document.getElementById('spawn_cell').play();"><button id="startButton">Play</button></a>
-            <button id="spectateButton">Spectate</button>
+            <!-- The Play Button -->
+            <a><button id="startButton">Play</button></a>
             <button id="settingsButton">Settings</button>
             <br />
             <div id="settings">
@@ -57,8 +58,88 @@
             </div>
         </div>
     </div>
+
+    <!-- Pop-up HTML -->
+    <div id="matchOverPopup" class="popup-overlay">
+        <div class="popup-content">
+            <h2>Match Over!</h2>
+            <p id="leaderboardPosition"></p>
+            <p id="betAmount"></p>
+            <p id="wonAmount"></p>
+            <p id="platformFee" style="display: none;"></p>
+            <p id="gasFee" style="display: none;"></p>
+            <button id="closePopupBtn">OK</button>
+        </div>
+    </div>
+
+    <!-- iframe to load the betting popup -->
+    <iframe id="startPopup" src="https://rcadya-app-dee7ef0f2cc9.herokuapp.com/api/v1/popup" style="display:none; width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 100;"></iframe>
+
     <!-- JS -->
-    <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="js/app.js"></script>
+
+    <!-- Betting popup logic -->
+    <script>
+
+        const allowedOrigins = ["https://rcadya-app-dee7ef0f2cc9.herokuapp.com", "http://localhost:3000"];
+
+        document.getElementById('startButton').addEventListener('click', function() {
+            // Show the betting popup when the Play button is clicked
+            document.getElementById('startPopup').style.display = 'block';
+        });
+
+        // Listen for the message from the betting popup
+        window.addEventListener('message', function(event) {
+            if (event.origin === "https://rcadya-app-dee7ef0f2cc9.herokuapp.com") { // Ensure you check the origin
+                if (event.data.betConfirmed) {
+                    // Hide the popup after the bet is confirmed
+                    document.getElementById('startPopup').style.display = 'none';
+
+                    // Start the game after bet confirmation
+                    startGameWithBet(event.data.betAmount);
+                } else if (event.data.error) {
+                    // Show custom modal with error message
+                    showErrorModal(event.data.errorMessage);
+                }
+            }
+        });
+
+        function startGameWithBet(betAmount) {
+            console.log('Game starting with a bet of ' + betAmount + ' USDC');
+            // Play the spawn sound
+            document.getElementById('spawn_cell').play();
+
+            // Call the function to start the game from app.js
+            startGame();
+        }
+
+        function showErrorModal(message) {
+            // Implementation for showing a custom modal
+            const errorModal = document.createElement('div');
+            errorModal.className = 'error-modal';
+            errorModal.innerHTML = `
+                <div class="modal-content">
+                    <p>${message}</p>
+                    <button id="errorOkBtn">OK</button>
+                </div>`;
+            document.body.appendChild(errorModal);
+
+            // Attach event handler to close the error modal
+            document.getElementById("errorOkBtn").addEventListener('click', closeErrorModal);
+        }
+
+        function closeErrorModal() {
+            const modal = document.querySelector('.error-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        // Focus on the player name input when the page loads
+        window.onload = function() {
+            document.getElementById('playerNameInput').focus();
+        };
+    </script>
 </body>
 </html>
