@@ -18,22 +18,29 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
 
+// Function to start the game
 function startGame(type) {
-    global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25);
+    global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25); // Sanitize player name
     global.playerType = type;
 
     global.screen.width = window.innerWidth;
     global.screen.height = window.innerHeight;
 
-    document.getElementById('startMenuWrapper').style.maxHeight = '0px';
-    document.getElementById('gameAreaWrapper').style.opacity = 1;
+    document.getElementById('startMenuWrapper').style.maxHeight = '0px'; // Hide the start menu
+    document.getElementById('gameAreaWrapper').style.opacity = 1; // Show the game area
+
+    // Connect to the socket only if it hasn't been initialized yet
     if (!socket) {
         socket = io({ query: "type=" + type });
         setupSocket(socket);
     }
+
+    // Start the animation loop if it hasn't started yet
     if (!global.animLoopHandle) {
         animloop();
     }
+
+    // Emit respawn and set up chat and canvas
     socket.emit('respawn');
     window.chat.socket = socket;
     window.chat.registerFunctions();
@@ -47,33 +54,30 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
+// Initialize the game UI and events when the page is loaded
 window.onload = function () {
-    var btn = document.getElementById('startButton');
+    var startButton = document.getElementById('startButton');
     var nickErrorText = document.querySelector('#startMenu .input-error');
 
-    // Start button
-    btn.onclick = function () {
+    // Start button click event
+    startButton.onclick = function () {
         if (validNick()) {
-            nickErrorText.style.opacity = 0;
-
-            // Show the betting popup iframe when Play button is clicked
-            const iframe = document.getElementById('bettingPopupIframe');
-            iframe.style.display = 'block'; // Show the iframe
-
+            nickErrorText.style.opacity = 0; // Hide error message
+            startGame('player'); // Start the game when a valid nickname is entered
         } else {
-            nickErrorText.style.opacity = 1;
+            nickErrorText.style.opacity = 1; // Show error message for invalid nickname
         }
     };
 
     // Settings menu toggle
-    var settingsMenu = document.getElementById('settingsButton');
+    var settingsButton = document.getElementById('settingsButton');
     var settings = document.getElementById('settings');
 
-    settingsMenu.onclick = function () {
-        if (settings.style.maxHeight == '300px') {
-            settings.style.maxHeight = '0px';
+    settingsButton.onclick = function () {
+        if (settings.style.maxHeight === '300px') {
+            settings.style.maxHeight = '0px'; // Hide settings
         } else {
-            settings.style.maxHeight = '300px';
+            settings.style.maxHeight = '300px'; // Show settings
         }
     };
 
@@ -83,34 +87,13 @@ window.onload = function () {
         if (key === global.KEY_ENTER) {
             if (validNick()) {
                 nickErrorText.style.opacity = 0;
-                startGame('player');
+                startGame('player'); // Start the game if Enter is pressed and nickname is valid
             } else {
                 nickErrorText.style.opacity = 1;
             }
         }
     });
-
-    // Listen for message from the betting popup and start the game upon bet confirmation
-    window.addEventListener('message', function (event) {
-        if (event.data.betConfirmed) {
-            // Hide the popup after the bet is confirmed
-            document.getElementById('bettingPopupIframe').style.display = 'none';
-
-            // Start the game after bet confirmation
-            startGameWithBet(event.data.betAmount);
-        }
-    });
 };
-
-// Start game with the confirmed bet amount
-function startGameWithBet(betAmount) {
-    console.log('Game starting with a bet of ' + betAmount + ' USDC');
-    // Play the spawn sound
-    document.getElementById('spawn_cell').play();
-
-    // Start the game
-    startGame('player');
-}
 
 // Player configurations
 var playerConfig = {
@@ -404,7 +387,7 @@ function resize() {
     socket.emit('windowResized', { screenWidth: global.screen.width, screenHeight: global.screen.height });
 }
 
-/** Pop-up Functions **/
+/** End-game Pop-up Functions **/
 
 function showMatchOverPopup(position, betAmount, matchId) {
     const popup = document.getElementById('matchOverPopup');
