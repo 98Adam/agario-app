@@ -31,8 +31,7 @@
             <input type="text" tabindex="0" autofocus placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
             <b class="input-error">Nickname can only be an alphanumerical combination</b>
             <br />
-            <!-- Play button triggers audio and starts game -->
-            <button id="startButton">Play</button>
+            <a onclick="document.getElementById('spawn_cell').play();"><button id="startButton">Play</button></a>
             <button id="settingsButton">Settings</button>
             <br />
             <div id="settings">
@@ -63,9 +62,10 @@
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
 
-    <!-- Script to extract and use wallet info -->
+    <!-- Script to extract and use WALLET info -->
     <script>
-    document.addEventListener("DOMContentLoaded", function() {
+    // Function to extract parameters (walletAddress and walletBalance)
+    window.onload = function() {
         const urlParams = new URLSearchParams(window.location.search);
         const walletAddress = urlParams.get('walletAddress');
         const walletBalance = urlParams.get('walletBalance');
@@ -74,15 +74,7 @@
         console.log("Wallet Address:", walletAddress);
         console.log("Wallet Balance:", walletBalance);
 
-    // Play button event listener to start audio and game
-    document.getElementById('startButton').addEventListener('click', function() {
-        try {
-            document.getElementById('spawn_cell').play();
-        } catch (error) {
-            console.error("Audio playback failed:", error);
-        }
-        // Additional logic to start the game can go here
-    });
+    };
     </script>
 </body>
 </html>
