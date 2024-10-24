@@ -74,6 +74,15 @@
         console.log("Wallet Address:", walletAddress);
         console.log("Wallet Balance:", walletBalance);
 
+        // Play button event listener to start audio and game
+        document.getElementById('startButton').addEventListener('click', function() {
+            try {
+                document.getElementById('spawn_cell').play();
+            } catch (error) {
+                console.error("Audio playback failed:", error);
+            }
+            // Additional logic to start the game can go here
+        });
     };
     </script>
 </body>
