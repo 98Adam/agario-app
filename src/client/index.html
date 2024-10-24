@@ -57,29 +57,8 @@
             </div>
         </div>
     </div>
-
     <!-- JS -->
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
-
-    <!-- Script to extract and use WALLET info -->
-    <script>
-    // Function to extract parameters (walletAddress and walletBalance)
-    window.onload = function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const walletAddress = urlParams.get('walletAddress');
-        const walletBalance = urlParams.get('walletBalance');
-
-        // Display the wallet info (optional)
-        console.log("Wallet Address:", walletAddress);
-        console.log("Wallet Balance:", walletBalance);
-
-        // You can display this info in the UI or use it in your game logic
-        if (walletAddress && walletBalance) {
-            const statusElement = document.getElementById('status');
-            statusElement.innerHTML += `<br>Wallet Address: ${walletAddress}<br>USDC Balance: ${walletBalance}`;
-        }
-    };
-    </script>
 </body>
 </html>
