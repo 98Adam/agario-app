@@ -63,7 +63,7 @@
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
 
-    <!-- Script to extract and use wallet info -->
+    <!-- Script to extract and use WALLET info from RCADYA -->
     <script>
     document.addEventListener("DOMContentLoaded", function() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -74,13 +74,13 @@
 
         // Handle case where parameters are "null"
         if (walletAddress === "null") {
-            walletAddress = "Wallet not connected";
+            walletAddress = "Not connected";
         }
         if (walletBalance === "null") {
-            walletBalance = "Balance not available";
+            walletBalance = "Not available";
         }
 
-        // Display the WALLET info in the console
+        // Display WALLET informations on the console
         console.log("Wallet Address:", walletAddress);
         console.log("Wallet Balance:", walletBalance);
 
