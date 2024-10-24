@@ -68,11 +68,11 @@
     document.addEventListener("DOMContentLoaded", function() {
         const urlParams = new URLSearchParams(window.location.search);
 
-        // Retrieve walletAddress and walletBalance from the URL
+        // Retrieve walletAddress and walletBalance
         let walletAddress = urlParams.get('walletAddress');
         let walletBalance = urlParams.get('walletBalance');
 
-        // Handle case where walletAddress or walletBalance are "null"
+        // Handle case where parameters are "null"
         if (walletAddress === "null") {
             walletAddress = "Wallet not connected";
         }
@@ -80,7 +80,7 @@
             walletBalance = "Balance not available";
         }
 
-        // Display the wallet info in the console
+        // Display the WALLET info in the console
         console.log("Wallet Address:", walletAddress);
         console.log("Wallet Balance:", walletBalance);
 
