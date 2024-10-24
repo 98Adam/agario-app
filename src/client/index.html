@@ -74,13 +74,6 @@
         console.log("Wallet Address:", walletAddress);
         console.log("Wallet Balance:", walletBalance);
 
-        // You can display this info in the UI or use it in your game logic
-        if (walletAddress && walletBalance) {
-            const statusElement = document.getElementById('status');
-            statusElement.innerHTML += `<br>Wallet Address: ${walletAddress}<br>USDC Balance: ${walletBalance}`;
-        }
-    });
-
     // Play button event listener to start audio and game
     document.getElementById('startButton').addEventListener('click', function() {
         try {
