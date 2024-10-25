@@ -78,7 +78,6 @@ window.onload = function () {
             document.querySelector('#startMenu .input-error').style.opacity = 1;
         }
     };
-};
 
     // Settings menu toggle
     var settingsMenu = document.getElementById('settingsButton');
@@ -98,10 +97,10 @@ window.onload = function () {
 
         if (key === global.KEY_ENTER) {
             if (validNick()) {
-                nickErrorText.style.opacity = 0;
+                document.querySelector('#startMenu .input-error').style.opacity = 0;
                 startGame('player');
             } else {
-                nickErrorText.style.opacity = 1;
+                document.querySelector('#startMenu .input-error').style.opacity = 1;
             }
         }
     });
