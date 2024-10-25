@@ -69,24 +69,21 @@
     <!-- Script to extract and use WALLET info from RCADYA -->
     <script>
     document.addEventListener("DOMContentLoaded", function() {
-        const urlParams = new URLSearchParams(window.location.search);
+        // Retrieve walletAddress and walletBalance from localStorage instead of URL
+        let walletAddress = localStorage.getItem('walletAddress');
+        let walletBalance = localStorage.getItem('walletBalance');
 
-        // Retrieve walletAddress and walletBalance
-        let walletAddress = urlParams.get('walletAddress');
-        let walletBalance = urlParams.get('walletBalance');
-
-        // Handle case where parameters are "null"
-        if (walletAddress === "null") {
+        // Handle case where localStorage values are not set or invalid
+        if (!walletAddress || walletAddress === "null") {
             walletAddress = "Not connected";
         }
-        if (walletBalance === "null") {
+        if (!walletBalance || walletBalance === "null") {
             walletBalance = "Not available";
         }
 
-        // Display WALLET informations on the console
+        // Display WALLET information on the console
         console.log("Wallet Address:", walletAddress);
         console.log("Wallet Balance:", walletBalance);
-
     });
     </script>
 </body>
