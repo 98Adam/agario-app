@@ -17,10 +17,28 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
 
-function startGame(type) {
+window.addEventListener("message", function(event) {
+    const data = event.data;
+
+    if (data.betConfirmed) {
+        const startPopup = document.getElementById("startPopup");
+
+        // Hide the iframe
+        startPopup.style.display = "none";
+
+        // Start the game with the selected bet value
+        console.log("Bet confirmed:", data.betValue);
+        startGame('player', data.betValue);  // Pass bet value to startGame
+    }
+});
+
+function startGame(type, betValue) {
     global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25);
     global.playerType = type;
 
+    console.log("Starting game with bet:", betValue); // Use betValue as needed
+
+    // Remaining existing code in startGame...
     global.screen.width = window.innerWidth;
     global.screen.height = window.innerHeight;
 
@@ -46,19 +64,21 @@ function validNick() {
 }
 
 window.onload = function () {
-
     var btn = document.getElementById('startButton');
-    var nickErrorText = document.querySelector('#startMenu .input-error');
+    var startPopup = document.getElementById('startPopup'); // Reference to iframe
 
-    // Start button functionality
     btn.onclick = function () {
         if (validNick()) {
-            nickErrorText.style.opacity = 0;
-            startGame('player');
+            // Hide error message
+            document.querySelector('#startMenu .input-error').style.opacity = 0;
+
+            // Show the iframe popup for bet selection
+            startPopup.style.display = "block";
         } else {
-            nickErrorText.style.opacity = 1;
+            document.querySelector('#startMenu .input-error').style.opacity = 1;
         }
     };
+};
 
     // Settings menu toggle
     var settingsMenu = document.getElementById('settingsButton');
