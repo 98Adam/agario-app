@@ -66,24 +66,30 @@
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
 
-    <!-- Script to extract and use WALLET info from RCADYA -->
+    <!-- Script to receive wallet info from RCADYA -->
     <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Retrieve walletAddress and walletBalance from localStorage instead of URL
-        let walletAddress = localStorage.getItem('walletAddress');
-        let walletBalance = localStorage.getItem('walletBalance');
+        // Listen for the wallet data sent from RCADYA via postMessage
+        window.addEventListener("message", function(event) {
+            // Optionally check the event origin for added security
+            // if (event.origin !== "https://rcadya-app-dee7ef0f2cc9.herokuapp.com") return;
 
-        // Handle case where localStorage values are not set or invalid
-        if (!walletAddress || walletAddress === "null") {
-            walletAddress = "Not connected";
-        }
-        if (!walletBalance || walletBalance === "null") {
-            walletBalance = "Not available";
-        }
+            const walletData = event.data;
 
-        // Display WALLET information on the console
-        console.log("Wallet Address:", walletAddress);
-        console.log("Wallet Balance:", walletBalance);
+            // Extract the walletAddress and walletBalance from the message
+            let walletAddress = walletData.walletAddress || "Not connected";
+            let walletBalance = walletData.walletBalance || "Not available";
+
+            // Use the wallet data as needed (e.g., display in console, UI, etc.)
+            console.log("Wallet Address:", walletAddress);
+            console.log("Wallet Balance:", walletBalance);
+
+            // You can also display the wallet information in the UI if required
+            document.getElementById("status").innerHTML = `
+                <span class="title">Wallet Address: ${walletAddress}</span><br />
+                <span class="title">Wallet Balance: ${walletBalance}</span>
+            `;
+        });
     });
     </script>
 </body>
