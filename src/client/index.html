@@ -66,30 +66,28 @@
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
 
-    <!-- Script to receive wallet info from RCADYA -->
+    <!-- Script to extract and use WALLET info from URL, then hide URL params -->
     <script>
     document.addEventListener("DOMContentLoaded", function() {
-        // Listen for the wallet data sent from RCADYA via postMessage
-        window.addEventListener("message", function(event) {
-            // Optionally check the event origin for added security
-            // if (event.origin !== "https://rcadya-app-dee7ef0f2cc9.herokuapp.com") return;
+        // Retrieve walletAddress and walletBalance from the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        let walletAddress = urlParams.get('walletAddress');
+        let walletBalance = urlParams.get('walletBalance');
 
-            const walletData = event.data;
+        // Handle case where URL parameters are not set or invalid
+        if (!walletAddress || walletAddress === "null") {
+            walletAddress = "Not connected";
+        }
+        if (!walletBalance || walletBalance === "null") {
+            walletBalance = "Not available";
+        }
 
-            // Extract the walletAddress and walletBalance from the message
-            let walletAddress = walletData.walletAddress || "Not connected";
-            let walletBalance = walletData.walletBalance || "Not available";
+        // Display WALLET information on the console
+        console.log("Wallet Address:", walletAddress);
+        console.log("Wallet Balance:", walletBalance);
 
-            // Use the wallet data as needed (e.g., display in console, UI, etc.)
-            console.log("Wallet Address:", walletAddress);
-            console.log("Wallet Balance:", walletBalance);
-
-            // You can also display the wallet information in the UI if required
-            document.getElementById("status").innerHTML = `
-                <span class="title">Wallet Address: ${walletAddress}</span><br />
-                <span class="title">Wallet Balance: ${walletBalance}</span>
-            `;
-        });
+        // After retrieving, clean the URL by removing the query parameters
+        window.history.pushState({}, document.title, window.location.pathname);
     });
     </script>
 </body>
