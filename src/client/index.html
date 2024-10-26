@@ -82,24 +82,20 @@
             walletBalance = "Not available";
         }
 
-        // Display WALLET information on the console
-        console.log("Wallet Address:", walletAddress);
-        console.log("Wallet Balance:", walletBalance);
-
         // Save to localStorage for other sessions or pages
         localStorage.setItem('walletAddress', walletAddress);
         localStorage.setItem('walletBalance', walletBalance);
 
-        // Send wallet data to popup (if open)
+        // Wait until the iframe has fully loaded before sending messages
         const iframe = document.getElementById("startPopup");
-        if (iframe) {
+        iframe.addEventListener("load", function() {
             iframe.contentWindow.postMessage({
                 walletAddress: walletAddress,
                 walletBalance: walletBalance
             }, "*");
-        }
+        });
 
-        // After retrieving, clean the URL by removing the query parameters
+        // Clean the URL after storing values
         window.history.pushState({}, document.title, window.location.pathname);
     });
     </script>
