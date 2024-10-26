@@ -78,7 +78,11 @@
 
             const iframe = document.getElementById("startPopup");
 
-            // Function to get and send wallet data to the popup
+            // Variables to store the last sent wallet data
+            let lastSentWalletAddress = localStorage.getItem('lastSentWalletAddress') || null;
+            let lastSentWalletBalance = localStorage.getItem('lastSentWalletBalance') || null;
+
+            // Function to get and send wallet data to the popup only if it has changed
             async function sendWalletDataToPopup() {
                 try {
                     const accounts = await ethereum.request({ method: 'eth_accounts' });
@@ -88,22 +92,30 @@
                         const balance = await usdcContract.methods.balanceOf(walletAddress).call();
                         const walletBalance = web3.utils.fromWei(balance, 'mwei');
 
-                        // Store wallet info in localStorage for potential reload
+                        // Send data to popup only if address or balance has changed
+                        if (walletAddress !== lastSentWalletAddress || walletBalance !== lastSentWalletBalance) {
+                            iframe.contentWindow.postMessage({
+                                walletAddress: walletAddress,
+                                walletBalance: walletBalance
+                            }, "*");
+
+                            // Update last sent values and store them in localStorage
+                            lastSentWalletAddress = walletAddress;
+                            lastSentWalletBalance = walletBalance;
+                            localStorage.setItem('lastSentWalletAddress', walletAddress);
+                            localStorage.setItem('lastSentWalletBalance', walletBalance);
+                        }
+
+                        // Store wallet data for reload persistence if needed
                         localStorage.setItem('walletAddress', walletAddress);
                         localStorage.setItem('walletBalance', walletBalance);
-
-                        // Send wallet data to the iframe popup
-                        iframe.contentWindow.postMessage({
-                            walletAddress: walletAddress,
-                            walletBalance: walletBalance
-                        }, "*");
                     }
                 } catch (error) {
                     console.error("Error retrieving wallet data:", error);
                 }
             }
 
-            // Send data to the popup when it's loaded
+            // Send data to the popup when it loads
             iframe.addEventListener("load", sendWalletDataToPopup);
 
             // Detect when MetaMask account is changed or initially connected
