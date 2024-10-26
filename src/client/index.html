@@ -76,49 +76,64 @@
                 }
             ];
 
-            // Check if the user has already connected MetaMask previously
+            const iframe = document.getElementById("startPopup");
+
+            // Function to get and send wallet data to the popup
+            async function sendWalletDataToPopup() {
+                try {
+                    const accounts = await ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        const walletAddress = accounts[0];
+                        const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
+                        const balance = await usdcContract.methods.balanceOf(walletAddress).call();
+                        const walletBalance = web3.utils.fromWei(balance, 'mwei');
+
+                        // Store wallet info in localStorage for potential reload
+                        localStorage.setItem('walletAddress', walletAddress);
+                        localStorage.setItem('walletBalance', walletBalance);
+
+                        // Send wallet data to the iframe popup
+                        iframe.contentWindow.postMessage({
+                            walletAddress: walletAddress,
+                            walletBalance: walletBalance
+                        }, "*");
+                    }
+                } catch (error) {
+                    console.error("Error retrieving wallet data:", error);
+                }
+            }
+
+            // Send data to the popup when it's loaded
+            iframe.addEventListener("load", sendWalletDataToPopup);
+
+            // Detect when MetaMask account is changed or initially connected
+            ethereum.on('accountsChanged', async (accounts) => {
+                if (accounts.length > 0) {
+                    await sendWalletDataToPopup();
+                }
+            });
+
+            // Initial connection check and reload if this is the first connection
             const hasConnectedBefore = localStorage.getItem('hasConnectedBefore') === 'true';
-
             try {
-                // Request account access if needed
                 await ethereum.request({ method: 'eth_requestAccounts' });
-                const accounts = await web3.eth.getAccounts();
-                const walletAddress = accounts[0];
-
-                const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
-                const balance = await usdcContract.methods.balanceOf(walletAddress).call();
-                const walletBalance = web3.utils.fromWei(balance, 'mwei');
-
-                // Store wallet info in localStorage
-                localStorage.setItem('walletAddress', walletAddress);
-                localStorage.setItem('walletBalance', walletBalance);
-
-                // If this is the first connection, set a flag and reload
                 if (!hasConnectedBefore) {
                     localStorage.setItem('hasConnectedBefore', 'true');
                     window.location.reload();
+                } else {
+                    sendWalletDataToPopup();
                 }
-
-                const iframe = document.getElementById("startPopup");
-
-                // Send wallet data to iframe when loaded
-                iframe.addEventListener("load", function() {
-                    iframe.contentWindow.postMessage({
-                        walletAddress: walletAddress,
-                        walletBalance: walletBalance
-                    }, "*");
-                });
-
-                // Listen for messages from the iframe to hide it
-                window.addEventListener("message", function(event) {
-                    if (event.data.action === "hideIframe") {
-                        iframe.style.display = "none";
-                    }
-                }, false);
-
             } catch (error) {
                 console.error("MetaMask connection or balance retrieval failed:", error);
             }
+
+            // Listen for messages from the iframe to hide it
+            window.addEventListener("message", function(event) {
+                if (event.data.action === "hideIframe") {
+                    iframe.style.display = "none";
+                }
+            }, false);
+
         } else {
             alert("MetaMask is required to play. Please install MetaMask.");
         }
