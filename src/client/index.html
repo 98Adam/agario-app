@@ -86,14 +86,23 @@
         localStorage.setItem('walletAddress', walletAddress);
         localStorage.setItem('walletBalance', walletBalance);
 
-        // Wait until the iframe has fully loaded before sending messages
+        // Get the iframe element
         const iframe = document.getElementById("startPopup");
+
+        // Wait until the iframe has fully loaded 
         iframe.addEventListener("load", function() {
             iframe.contentWindow.postMessage({
                 walletAddress: walletAddress,
                 walletBalance: walletBalance
             }, "*");
         });
+
+        // Listen for messages from the iframe (popup) to hide the iframe
+        window.addEventListener("message", function(event) {
+            if (event.data.action === "hideIframe") {
+                iframe.style.display = "none";
+            }
+        }, false);
 
         // Clean the URL after storing values
         window.history.pushState({}, document.title, window.location.pathname);
