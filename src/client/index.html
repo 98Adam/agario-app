@@ -77,21 +77,27 @@
         // Handle case where URL parameters are not sent
         if (!walletAddress || walletAddress === "null") {
             walletAddress = "Not connected";
-        } else {
-            // Store the wallet information in localStorage for later use
-            localStorage.setItem('walletAddress', walletAddress);
         }
-
         if (!walletBalance || walletBalance === "null") {
             walletBalance = "Not available";
-        } else {
-            // Store the wallet balance in localStorage
-            localStorage.setItem('walletBalance', walletBalance);
         }
 
         // Display WALLET information on the console
         console.log("Wallet Address:", walletAddress);
         console.log("Wallet Balance:", walletBalance);
+
+        // Save to localStorage for other sessions or pages
+        localStorage.setItem('walletAddress', walletAddress);
+        localStorage.setItem('walletBalance', walletBalance);
+
+        // Send wallet data to popup (if open)
+        const iframe = document.getElementById("startPopup");
+        if (iframe) {
+            iframe.contentWindow.postMessage({
+                walletAddress: walletAddress,
+                walletBalance: walletBalance
+            }, "*");
+        }
 
         // After retrieving, clean the URL by removing the query parameters
         window.history.pushState({}, document.title, window.location.pathname);
