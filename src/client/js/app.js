@@ -63,17 +63,56 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
+// Function to check MetaMask connection
+async function checkMetaMaskConnection() {
+    if (typeof window.ethereum !== 'undefined') {
+        try {
+            const accounts = await ethereum.request({ method: 'eth_accounts' });
+            return accounts.length > 0; // Returns true if connected, false otherwise
+        } catch (error) {
+            console.error("Error checking MetaMask connection:", error);
+            return false;
+        }
+    } else {
+        alert("MetaMask is not installed. Please install MetaMask to continue.");
+        return false;
+    }
+}
+
+// Function to request MetaMask connection
+async function connectMetaMask() {
+    try {
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        return accounts.length > 0;
+    } catch (error) {
+        console.error("MetaMask connection failed:", error);
+        return false;
+    }
+}
+
 window.onload = function () {
     var btn = document.getElementById('startButton');
     var startPopup = document.getElementById('startPopup'); // Reference to iframe
 
-    btn.onclick = function () {
+    btn.onclick = async function () {
         if (validNick()) {
             // Hide error message
             document.querySelector('#startMenu .input-error').style.opacity = 0;
 
-            // Show the iframe popup for bet selection
-            startPopup.style.display = "block";
+            // Check MetaMask connection status
+            let isConnected = await checkMetaMaskConnection();
+
+            if (!isConnected) {
+                // If not connected, request MetaMask connection
+                isConnected = await connectMetaMask();
+            }
+
+            if (isConnected) {
+                // Show the iframe popup for bet selection
+                startPopup.style.display = "block";
+            } else {
+                alert("MetaMask connection is required to play.");
+            }
         } else {
             document.querySelector('#startMenu .input-error').style.opacity = 1;
         }
@@ -304,7 +343,6 @@ window.requestAnimFrame = (function () {
     return window.requestAnimationFrame ||
         window.webkitRequestAnimationFrame ||
         window.mozRequestAnimationFrame ||
-        window.msRequestAnimationFrame ||
         function (callback) {
             window.setTimeout(callback, 1000 / 60);
         };
