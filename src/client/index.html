@@ -76,9 +76,10 @@
                 }
             ];
 
-            try {
-                const wasPreviouslyConnected = localStorage.getItem('walletAddress') !== null;
+            // Check if the user has already connected MetaMask previously
+            const hasConnectedBefore = localStorage.getItem('hasConnectedBefore') === 'true';
 
+            try {
                 // Request account access if needed
                 await ethereum.request({ method: 'eth_requestAccounts' });
                 const accounts = await web3.eth.getAccounts();
@@ -86,15 +87,15 @@
 
                 const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
                 const balance = await usdcContract.methods.balanceOf(walletAddress).call();
-
                 const walletBalance = web3.utils.fromWei(balance, 'mwei');
 
                 // Store wallet info in localStorage
                 localStorage.setItem('walletAddress', walletAddress);
                 localStorage.setItem('walletBalance', walletBalance);
 
-                // If this was the first connection, reload to update UI
-                if (!wasPreviouslyConnected) {
+                // If this is the first connection, set a flag and reload
+                if (!hasConnectedBefore) {
+                    localStorage.setItem('hasConnectedBefore', 'true');
                     window.location.reload();
                 }
 
