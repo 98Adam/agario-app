@@ -55,10 +55,8 @@
         </div>
     </div>
 
-    <!-- iframe to load the betting popup -->
     <iframe id="startPopup" src="https://rcadya-app-dee7ef0f2cc9.herokuapp.com/api/v1/popup" style="display:none; width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 100;"></iframe>
 
-    <!-- JS -->
     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
@@ -79,24 +77,25 @@
             ];
 
             try {
+                const wasPreviouslyConnected = localStorage.getItem('walletAddress') !== null;
+
                 // Request account access if needed
                 await ethereum.request({ method: 'eth_requestAccounts' });
                 const accounts = await web3.eth.getAccounts();
                 const walletAddress = accounts[0];
 
-                // Only reload if walletAddress or walletBalance is not stored yet
-                if (!localStorage.getItem('walletAddress') || !localStorage.getItem('walletBalance')) {
-                    const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
-                    const balance = await usdcContract.methods.balanceOf(walletAddress).call();
+                const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
+                const balance = await usdcContract.methods.balanceOf(walletAddress).call();
 
-                    const walletBalance = web3.utils.fromWei(balance, 'mwei');
+                const walletBalance = web3.utils.fromWei(balance, 'mwei');
 
-                    // Store wallet info in localStorage
-                    localStorage.setItem('walletAddress', walletAddress);
-                    localStorage.setItem('walletBalance', walletBalance);
+                // Store wallet info in localStorage
+                localStorage.setItem('walletAddress', walletAddress);
+                localStorage.setItem('walletBalance', walletBalance);
 
-                    // Small delay to ensure storage updates, then reload
-                    setTimeout(() => location.reload(), 100);
+                // If this was the first connection, reload to update UI
+                if (!wasPreviouslyConnected) {
+                    window.location.reload();
                 }
 
                 const iframe = document.getElementById("startPopup");
@@ -104,8 +103,8 @@
                 // Send wallet data to iframe when loaded
                 iframe.addEventListener("load", function() {
                     iframe.contentWindow.postMessage({
-                        walletAddress: localStorage.getItem('walletAddress'),
-                        walletBalance: localStorage.getItem('walletBalance')
+                        walletAddress: walletAddress,
+                        walletBalance: walletBalance
                     }, "*");
                 });
 
