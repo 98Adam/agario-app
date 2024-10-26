@@ -31,7 +31,6 @@
             <input type="text" tabindex="0" autofocus placeholder="Enter your name here" id="playerNameInput" maxlength="25" />
             <b class="input-error">Nickname can only be an alphanumerical combination</b>
             <br />
-            <!-- Play button triggers audio and starts game -->
             <button id="startButton">Play</button>
             <button id="settingsButton">Settings</button>
             <br />
@@ -63,49 +62,64 @@
     <iframe id="startPopup" src="https://rcadya-app-dee7ef0f2cc9.herokuapp.com/api/v1/popup" style="display:none; width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 100;"></iframe>
 
     <!-- JS -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
 
-    <!-- Script to extract and use WALLET info from RCADYA -->
     <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Retrieve walletAddress and walletBalance from the URL
-        const urlParams = new URLSearchParams(window.location.search);
-        let walletAddress = urlParams.get('walletAddress');
-        let walletBalance = urlParams.get('walletBalance');
+    document.addEventListener("DOMContentLoaded", async function() {
+        if (typeof window.ethereum !== 'undefined') {
+            const web3 = new Web3(window.ethereum);
+            const usdcContractAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"; // Mainnet USDC
+            const usdcAbi = [
+                {
+                    "constant": true,
+                    "inputs": [{"name": "_owner", "type": "address"}],
+                    "name": "balanceOf",
+                    "outputs": [{"name": "balance", "type": "uint256"}],
+                    "type": "function"
+                }
+            ];
 
-        // Handle case where URL parameters are not sent
-        if (!walletAddress || walletAddress === "null") {
-            walletAddress = "Not connected";
-        }
-        if (!walletBalance || walletBalance === "null") {
-            walletBalance = "Not available";
-        }
+            try {
+                // Request account access if needed
+                await ethereum.request({ method: 'eth_requestAccounts' });
+                const accounts = await web3.eth.getAccounts();
+                const walletAddress = accounts[0];
 
-        // Save to localStorage for other sessions or pages
-        localStorage.setItem('walletAddress', walletAddress);
-        localStorage.setItem('walletBalance', walletBalance);
+                const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
+                const balance = await usdcContract.methods.balanceOf(walletAddress).call();
 
-        // Get the iframe element
-        const iframe = document.getElementById("startPopup");
+                // USDC is typically in 6 decimal places
+                const walletBalance = web3.utils.fromWei(balance, 'mwei'); // Convert to USDC units
 
-        // Wait until the iframe has fully loaded
-        iframe.addEventListener("load", function() {
-            iframe.contentWindow.postMessage({
-                walletAddress: walletAddress,
-                walletBalance: walletBalance
-            }, "*");
-        });
+                // Store wallet info in localStorage
+                localStorage.setItem('walletAddress', walletAddress);
+                localStorage.setItem('walletBalance', walletBalance);
 
-        // Listen for messages from the iframe (popup) to hide the iframe
-        window.addEventListener("message", function(event) {
-            if (event.data.action === "hideIframe") {
-                iframe.style.display = "none";
+                const iframe = document.getElementById("startPopup");
+
+                // Send wallet data to iframe when loaded
+                iframe.addEventListener("load", function() {
+                    iframe.contentWindow.postMessage({
+                        walletAddress: walletAddress,
+                        walletBalance: walletBalance
+                    }, "*");
+                });
+
+                // Listen for messages from the iframe to hide it
+                window.addEventListener("message", function(event) {
+                    if (event.data.action === "hideIframe") {
+                        iframe.style.display = "none";
+                    }
+                }, false);
+
+            } catch (error) {
+                console.error("MetaMask connection or balance retrieval failed:", error);
             }
-        }, false);
-
-        // Clean the URL after storing values
-        window.history.pushState({}, document.title, window.location.pathname);
+        } else {
+            alert("MetaMask is required to play. Please install MetaMask.");
+        }
     });
     </script>
 </body>
