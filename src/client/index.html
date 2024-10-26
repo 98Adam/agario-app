@@ -95,8 +95,8 @@
                     localStorage.setItem('walletAddress', walletAddress);
                     localStorage.setItem('walletBalance', walletBalance);
 
-                    // Reload the page to reflect updated wallet values
-                    location.reload();
+                    // Small delay to ensure storage updates, then reload
+                    setTimeout(() => location.reload(), 100);
                 }
 
                 const iframe = document.getElementById("startPopup");
