@@ -78,7 +78,7 @@
 
             const iframe = document.getElementById("startPopup");
 
-            // Variables to store the last sent wallet data
+            // Retrieve last sent wallet data from localStorage, initialize if null
             let lastSentWalletAddress = localStorage.getItem('lastSentWalletAddress') || null;
             let lastSentWalletBalance = localStorage.getItem('lastSentWalletBalance') || null;
 
@@ -92,8 +92,13 @@
                         const balance = await usdcContract.methods.balanceOf(walletAddress).call();
                         const walletBalance = web3.utils.fromWei(balance, 'mwei');
 
-                        // Send data to popup only if address or balance has changed
+                        console.log("Current walletAddress:", walletAddress);
+                        console.log("Current walletBalance:", walletBalance);
+
+                        // Check if the data has changed since last sent
                         if (walletAddress !== lastSentWalletAddress || walletBalance !== lastSentWalletBalance) {
+                            console.log("Sending data to popup:", walletAddress, walletBalance);
+
                             iframe.contentWindow.postMessage({
                                 walletAddress: walletAddress,
                                 walletBalance: walletBalance
@@ -104,9 +109,11 @@
                             lastSentWalletBalance = walletBalance;
                             localStorage.setItem('lastSentWalletAddress', walletAddress);
                             localStorage.setItem('lastSentWalletBalance', walletBalance);
+                        } else {
+                            console.log("Data unchanged, not re-sending.");
                         }
 
-                        // Store wallet data for reload persistence if needed
+                        // Store wallet data for reload persistence
                         localStorage.setItem('walletAddress', walletAddress);
                         localStorage.setItem('walletBalance', walletBalance);
                     }
@@ -118,21 +125,24 @@
             // Send data to the popup when it loads
             iframe.addEventListener("load", sendWalletDataToPopup);
 
-            // Detect when MetaMask account is changed or initially connected
+            // Detect when MetaMask account is changed and trigger data send
             ethereum.on('accountsChanged', async (accounts) => {
+                console.log("MetaMask account changed");
                 if (accounts.length > 0) {
                     await sendWalletDataToPopup();
                 }
             });
 
-            // Initial connection check and reload if this is the first connection
+            // Initial connection check
             const hasConnectedBefore = localStorage.getItem('hasConnectedBefore') === 'true';
             try {
                 await ethereum.request({ method: 'eth_requestAccounts' });
                 if (!hasConnectedBefore) {
+                    console.log("First connection, setting flag and reloading.");
                     localStorage.setItem('hasConnectedBefore', 'true');
                     window.location.reload();
                 } else {
+                    console.log("MetaMask already connected, checking data.");
                     sendWalletDataToPopup();
                 }
             } catch (error) {
