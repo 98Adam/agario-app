@@ -55,14 +55,15 @@
         </div>
     </div>
 
+    <!-- iframe to load the betting popup -->
     <iframe id="startPopup" src="https://rcadya-app-dee7ef0f2cc9.herokuapp.com/api/v1/popup" style="display:none; width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 100;"></iframe>
 
+    <!-- JS -->
     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
 
     <script>
-
     document.addEventListener("DOMContentLoaded", async function() {
         if (typeof window.ethereum !== 'undefined') {
             const web3 = new Web3(window.ethereum);
@@ -78,51 +79,46 @@
             ];
 
             try {
-                // Check if the page has been reloaded already after connection
-                const pageReloaded = localStorage.getItem('pageReloadedAfterConnection');
-
                 // Request account access if needed
-                const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                await ethereum.request({ method: 'eth_requestAccounts' });
+                const accounts = await web3.eth.getAccounts();
+                const walletAddress = accounts[0];
 
-                if (accounts.length > 0) {
-                    const walletAddress = accounts[0];
+                // Only reload if walletAddress or walletBalance is not stored yet
+                if (!localStorage.getItem('walletAddress') || !localStorage.getItem('walletBalance')) {
                     const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
                     const balance = await usdcContract.methods.balanceOf(walletAddress).call();
 
-                    // Convert balance to USDC units (6 decimals)
                     const walletBalance = web3.utils.fromWei(balance, 'mwei');
 
                     // Store wallet info in localStorage
                     localStorage.setItem('walletAddress', walletAddress);
                     localStorage.setItem('walletBalance', walletBalance);
 
-                    // Check if this is the first connection (no reload flag set)
-                    if (!pageReloaded) {
-                        // Set the reload flag and reload the page
-                        localStorage.setItem('pageReloadedAfterConnection', 'true');
-                        location.reload();
-                    } else {
-                        const iframe = document.getElementById("startPopup");
-
-                        // Send wallet data to iframe when loaded
-                        iframe.addEventListener("load", function() {
-                            iframe.contentWindow.postMessage({
-                                walletAddress: walletAddress,
-                                walletBalance: walletBalance
-                            }, "*");
-                        });
-
-                        // Listen for messages from the iframe to hide it
-                        window.addEventListener("message", function(event) {
-                            if (event.data.action === "hideIframe") {
-                                iframe.style.display = "none";
-                            }
-                        }, false);
-                    }
-
+                    // Reload the page to reflect updated wallet values
+                    location.reload();
                 } else {
-                    console.log("MetaMask connection failed or account not authorized.");
+                    // Values already exist in localStorage, so we display them directly
+                    console.log("Wallet Address:", localStorage.getItem('walletAddress'));
+                    console.log("Wallet Balance:", localStorage.getItem('walletBalance'));
                 }
+
+                const iframe = document.getElementById("startPopup");
+
+                // Send wallet data to iframe when loaded
+                iframe.addEventListener("load", function() {
+                    iframe.contentWindow.postMessage({
+                        walletAddress: localStorage.getItem('walletAddress'),
+                        walletBalance: localStorage.getItem('walletBalance')
+                    }, "*");
+                });
+
+                // Listen for messages from the iframe to hide it
+                window.addEventListener("message", function(event) {
+                    if (event.data.action === "hideIframe") {
+                        iframe.style.display = "none";
+                    }
+                }, false);
 
             } catch (error) {
                 console.error("MetaMask connection or balance retrieval failed:", error);
