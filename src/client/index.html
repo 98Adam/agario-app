@@ -1,14 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <!-- Meta Properties -->
     <meta charset="UTF-8">
     <title>Crypto.io</title>
     <link rel="icon" href="https://i.postimg.cc/0yNgYZ4f/rcadya-favicon.png" type="image/x-icon">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-    <!-- CSS -->
     <link rel="stylesheet" href="css/main.css" />
-    <!-- Audio -->
     <audio id="split_cell" src="audio/split.mp3"></audio>
     <audio id="spawn_cell" src="audio/spawn.mp3"></audio>
 </head>
@@ -58,19 +55,18 @@
         </div>
     </div>
 
-    <!-- iframe to load the betting popup -->
     <iframe id="startPopup" src="https://rcadya-app-dee7ef0f2cc9.herokuapp.com/api/v1/popup" style="display:none; width: 100%; height: 100%; position: fixed; top: 0; left: 0; z-index: 100;"></iframe>
 
-    <!-- JS -->
     <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
     <script src="//code.jquery.com/jquery-2.2.0.min.js"></script>
     <script src="js/app.js"></script>
 
     <script>
+
     document.addEventListener("DOMContentLoaded", async function() {
         if (typeof window.ethereum !== 'undefined') {
             const web3 = new Web3(window.ethereum);
-            const usdcContractAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"; // Mainnet USDC
+            const usdcContractAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
             const usdcAbi = [
                 {
                     "constant": true,
@@ -82,37 +78,51 @@
             ];
 
             try {
+                // Check if the page has been reloaded already after connection
+                const pageReloaded = localStorage.getItem('pageReloadedAfterConnection');
+
                 // Request account access if needed
-                await ethereum.request({ method: 'eth_requestAccounts' });
-                const accounts = await web3.eth.getAccounts();
-                const walletAddress = accounts[0];
+                const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
 
-                const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
-                const balance = await usdcContract.methods.balanceOf(walletAddress).call();
+                if (accounts.length > 0) {
+                    const walletAddress = accounts[0];
+                    const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
+                    const balance = await usdcContract.methods.balanceOf(walletAddress).call();
 
-                // USDC is typically in 6 decimal places
-                const walletBalance = web3.utils.fromWei(balance, 'mwei'); // Convert to USDC units
+                    // Convert balance to USDC units (6 decimals)
+                    const walletBalance = web3.utils.fromWei(balance, 'mwei');
 
-                // Store wallet info in localStorage
-                localStorage.setItem('walletAddress', walletAddress);
-                localStorage.setItem('walletBalance', walletBalance);
+                    // Store wallet info in localStorage
+                    localStorage.setItem('walletAddress', walletAddress);
+                    localStorage.setItem('walletBalance', walletBalance);
 
-                const iframe = document.getElementById("startPopup");
+                    // Check if this is the first connection (no reload flag set)
+                    if (!pageReloaded) {
+                        // Set the reload flag and reload the page
+                        localStorage.setItem('pageReloadedAfterConnection', 'true');
+                        location.reload();
+                    } else {
+                        const iframe = document.getElementById("startPopup");
 
-                // Send wallet data to iframe when loaded
-                iframe.addEventListener("load", function() {
-                    iframe.contentWindow.postMessage({
-                        walletAddress: walletAddress,
-                        walletBalance: walletBalance
-                    }, "*");
-                });
+                        // Send wallet data to iframe when loaded
+                        iframe.addEventListener("load", function() {
+                            iframe.contentWindow.postMessage({
+                                walletAddress: walletAddress,
+                                walletBalance: walletBalance
+                            }, "*");
+                        });
 
-                // Listen for messages from the iframe to hide it
-                window.addEventListener("message", function(event) {
-                    if (event.data.action === "hideIframe") {
-                        iframe.style.display = "none";
+                        // Listen for messages from the iframe to hide it
+                        window.addEventListener("message", function(event) {
+                            if (event.data.action === "hideIframe") {
+                                iframe.style.display = "none";
+                            }
+                        }, false);
                     }
-                }, false);
+
+                } else {
+                    console.log("MetaMask connection failed or account not authorized.");
+                }
 
             } catch (error) {
                 console.error("MetaMask connection or balance retrieval failed:", error);
