@@ -1,3 +1,4 @@
+// Import required modules
 var io = require('socket.io-client');
 var render = require('./render');
 var ChatClient = require('./chat-client');
@@ -17,6 +18,7 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
 
+// Listen for messages from the game
 window.addEventListener("message", function(event) {
     const data = event.data;
 
@@ -57,7 +59,7 @@ function startGame(type, betValue) {
     global.socket = socket;
 }
 
-// Checks if the nick chosen contains valid alphanumeric characters
+// Checks if the nickname contains valid alphanumeric characters
 function validNick() {
     var regex = /^\w*$/;
     return regex.exec(playerNameInput.value) !== null;
