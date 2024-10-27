@@ -62,7 +62,7 @@
     <script src="js/app.js"></script>
 
     <script>
-    
+
     document.addEventListener("DOMContentLoaded", function() {
         if (typeof window.ethereum !== 'undefined') {
             const web3 = new Web3(window.ethereum);
@@ -139,10 +139,10 @@
                         window.location.reload();
                     } else {
                         sendWalletDataToPopup();
-                        iframe.style.display = "block"; // Show popup once connected
+                        iframe.style.display = "block"; // Show Popup once connected
                     }
                 } catch (error) {
-                    console.error("MetaMask connection or balance retrieval failed:", error);
+                    console.error("MetaMask connection failed:", error);
                 }
             };
 
@@ -154,7 +154,11 @@
             }, false);
 
         } else {
-            alert("MetaMask is required to play. Please install MetaMask.");
+            // If MetaMask is not installed, ask user if they want to download it
+            const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+            if (confirmation) {
+                window.open("https://metamask.io/download/", "_blank");
+            }
         }
     });
     </script>
