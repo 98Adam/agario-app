@@ -62,8 +62,8 @@
     <script src="js/app.js"></script>
 
     <script>
-
-    document.addEventListener("DOMContentLoaded", async function() {
+    
+    document.addEventListener("DOMContentLoaded", function() {
         if (typeof window.ethereum !== 'undefined') {
             const web3 = new Web3(window.ethereum);
             const usdcContractAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
@@ -123,24 +123,28 @@
             });
 
             // Detect when MetaMask account is changed and reset flag to allow one-time sending
-            ethereum.on('accountsChanged', async (accounts) => {
+            ethereum.on('accountsChanged', async () => {
                 hasSentData = false; // Reset flag on account change
                 await sendWalletDataToPopup();
             });
 
-            // Initial connection check and reload if this is the first connection
-            const hasConnectedBefore = localStorage.getItem('hasConnectedBefore') === 'true';
-            try {
-                await ethereum.request({ method: 'eth_requestAccounts' });
-                if (!hasConnectedBefore) {
-                    localStorage.setItem('hasConnectedBefore', 'true');
-                    window.location.reload();
-                } else {
-                    sendWalletDataToPopup();
+            // Trigger MetaMask connection on "Play" button click only
+            document.getElementById('startButton').onclick = async function() {
+                try {
+                    const hasConnectedBefore = localStorage.getItem('hasConnectedBefore') === 'true';
+                    await ethereum.request({ method: 'eth_requestAccounts' });
+
+                    if (!hasConnectedBefore) {
+                        localStorage.setItem('hasConnectedBefore', 'true');
+                        window.location.reload();
+                    } else {
+                        sendWalletDataToPopup();
+                        iframe.style.display = "block"; // Show popup once connected
+                    }
+                } catch (error) {
+                    console.error("MetaMask connection or balance retrieval failed:", error);
                 }
-            } catch (error) {
-                console.error("MetaMask connection or balance retrieval failed:", error);
-            }
+            };
 
             // Listen for messages from the iframe to hide it
             window.addEventListener("message", function(event) {
