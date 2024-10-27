@@ -62,6 +62,7 @@
     <script src="js/app.js"></script>
 
     <script>
+
     document.addEventListener("DOMContentLoaded", async function() {
         if (typeof window.ethereum !== 'undefined') {
             const web3 = new Web3(window.ethereum);
@@ -77,13 +78,10 @@
             ];
 
             const iframe = document.getElementById("startPopup");
-            let hasSentData = false; // Flag to ensure data is sent only once per connection
+            let hasSentData = false; // Ensure data is sent only once per connection
+            let lastWalletBalance = null; // Track last sent Wallet Balance
 
-            // Function to get and send wallet data to the popup
             async function sendWalletDataToPopup() {
-                if (hasSentData) return; // Exit if data has already been sent
-                hasSentData = true;
-
                 try {
                     const accounts = await ethereum.request({ method: 'eth_accounts' });
                     if (accounts.length > 0) {
@@ -92,22 +90,33 @@
                         const balance = await usdcContract.methods.balanceOf(walletAddress).call();
                         const walletBalance = web3.utils.fromWei(balance, 'mwei');
 
-                        // Store wallet info in localStorage for potential reload
-                        localStorage.setItem('walletAddress', walletAddress);
-                        localStorage.setItem('walletBalance', walletBalance);
+                        // Check if there's need to reset hasSentData based on balance changes
+                        if (walletBalance !== lastWalletBalance) {
+                            hasSentData = false; // Reset if balance has changed
+                            lastWalletBalance = walletBalance; // Update the last known balance
+                        }
 
-                        // Send wallet data to the iframe popup
-                        iframe.contentWindow.postMessage({
-                            walletAddress: walletAddress,
-                            walletBalance: walletBalance
-                        }, "*");
+                        // Send data only if not already sent or balance has changed
+                        if (!hasSentData) {
+                            hasSentData = true;
+
+                            // Store wallet info in localStorage for potential reload
+                            localStorage.setItem('walletAddress', walletAddress);
+                            localStorage.setItem('walletBalance', walletBalance);
+
+                            // Send wallet data to the Popup
+                            iframe.contentWindow.postMessage({
+                                walletAddress: walletAddress,
+                                walletBalance: walletBalance
+                            }, "*");
+                        }
                     }
                 } catch (error) {
                     console.error("Error retrieving wallet data:", error);
                 }
             }
 
-            // Send data to the popup when it's loaded and reset flag to allow one-time sending
+            // Send data to the Popup when it's loaded and reset flag to allow one-time sending
             iframe.addEventListener("load", () => {
                 hasSentData = false; // Reset flag on iframe load to allow sending data
                 sendWalletDataToPopup();

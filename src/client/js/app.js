@@ -36,7 +36,7 @@ function startGame(type, betValue) {
     global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25);
     global.playerType = type;
 
-    console.log("Starting game with bet:", betValue); // Use betValue as needed
+    console.log("Starting Game with bet:", betValue); // Use betValue as needed
 
     // Remaining existing code in startGame...
     global.screen.width = window.innerWidth;
@@ -57,13 +57,13 @@ function startGame(type, betValue) {
     global.socket = socket;
 }
 
-// Checks if the nick chosen contains valid alphanumeric characters (and underscores).
+// Checks if the nick chosen contains valid alphanumeric characters
 function validNick() {
     var regex = /^\w*$/;
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Function to check MetaMask connection
+// Function to check MetaMask Connection
 async function checkMetaMaskConnection() {
     if (typeof window.ethereum !== 'undefined') {
         try {
@@ -79,7 +79,7 @@ async function checkMetaMaskConnection() {
     }
 }
 
-// Function to request MetaMask connection
+// Function to request MetaMask Connection
 async function connectMetaMask() {
     try {
         const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
@@ -99,16 +99,16 @@ window.onload = function () {
             // Hide error message
             document.querySelector('#startMenu .input-error').style.opacity = 0;
 
-            // Check MetaMask connection status
+            // Check MetaMask Connection Status
             let isConnected = await checkMetaMaskConnection();
 
             if (!isConnected) {
-                // If not connected, request MetaMask connection
+                // If not connected, request MetaMask Connection
                 isConnected = await connectMetaMask();
             }
 
             if (isConnected) {
-                // Show the iframe popup for bet selection
+                // Show the iframe Popup for bet selection
                 startPopup.style.display = "block";
             } else {
                 alert("MetaMask connection is required to play.");
@@ -118,7 +118,7 @@ window.onload = function () {
         }
     };
 
-    // Settings menu toggle
+    // Settings Menu toggle
     var settingsMenu = document.getElementById('settingsButton');
     var settings = document.getElementById('settings');
 
@@ -130,7 +130,7 @@ window.onload = function () {
         }
     };
 
-    // Handle pressing Enter key to start the game
+    // Handle pressing "Enter" key to start the game
     playerNameInput.addEventListener('keypress', function (e) {
         var key = e.which || e.keyCode;
 
@@ -258,7 +258,7 @@ function setupSocket(socket) {
         window.chat.addSystemLine('{GAME} - <b>' + (isUnnamedCell(data.name) ? 'An unnamed cell' : data.name) + '</b> joined.');
     });
 
-    // Handle leaderboard updates
+    // Handle Leaderboard Updates
     socket.on('leaderboard', (data) => {
         leaderboard = data.leaderboard;
         var status = '<span class="title">Leaderboard</span>';
@@ -288,7 +288,7 @@ function setupSocket(socket) {
         window.chat.addChatLine(data.sender, data.message, false);
     });
 
-    // Handle movement updates
+    // Handle Movement Updates
     socket.on('serverTellPlayerMove', function (playerData, userData, foodsList, massList, virusList) {
         if (global.playerType == 'player') {
             player.x = playerData.x;
@@ -303,7 +303,7 @@ function setupSocket(socket) {
         fireFood = massList;
     });
 
-    // Player death handling
+    // Player Death Handling
     socket.on('RIP', function () {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
@@ -412,7 +412,7 @@ function gameLoop() {
     }
 }
 
-// Handle screen resize
+// Handle Screen Resize
 window.addEventListener('resize', resize);
 
 function resize() {
