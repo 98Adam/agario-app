@@ -149,7 +149,6 @@
                     }
                 } catch (error) {
                     console.error("MetaMask connection failed:", error);
-                    alert("MetaMask connection is required to play.");
                 }
             };
 
@@ -165,8 +164,6 @@
             const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
             if (confirmation) {
                 window.open("https://metamask.io/download/", "_blank");
-            } else {
-                alert("MetaMask is required to play.");
             }
         }
     });
