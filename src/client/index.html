@@ -68,7 +68,6 @@
         let hasSentData = false; // Ensure data is sent only once per connection
         let lastWalletBalance = null; // Track last sent Wallet Balance
 
-        // Function to initialize Web3 and MetaMask-related tasks
         function initializeMetaMask() {
             if (typeof window.ethereum !== 'undefined') {
                 const web3 = new Web3(window.ethereum);
@@ -83,7 +82,6 @@
                     }
                 ];
 
-                // Function to send wallet data to the Popup
                 async function sendWalletDataToPopup() {
                     try {
                         const accounts = await ethereum.request({ method: 'eth_accounts' });
@@ -93,13 +91,13 @@
                             const balance = await usdcContract.methods.balanceOf(walletAddress).call();
                             const walletBalance = web3.utils.fromWei(balance, 'mwei');
 
-                            // Check if wallet balance has changed
+                            // Check if Wallet Balance has changed
                             if (walletBalance !== lastWalletBalance) {
                                 hasSentData = false; // Reset if balance has changed
-                                lastWalletBalance = walletBalance; // Update the last known balance
+                                lastWalletBalance = walletBalance; // Update last known balance
                             }
 
-                            // Send data only if not already sent or balance has changed
+                            // Send data only if not already sent or if balance has changed
                             if (!hasSentData) {
                                 hasSentData = true;
 
@@ -119,9 +117,9 @@
                     }
                 }
 
-                // Trigger sendWalletDataToPopup() when the Popup iframe loads
+                // Trigger sendWalletDataToPopup() when the Popup loads
                 iframe.addEventListener("load", () => {
-                    hasSentData = false; // Reset flag on iframe load to allow sending data
+                    hasSentData = false; // Reset to allow sending data
                     sendWalletDataToPopup();
                 });
 

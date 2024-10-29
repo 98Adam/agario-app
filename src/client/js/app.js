@@ -76,7 +76,11 @@ async function checkMetaMaskConnection() {
             return false;
         }
     } else {
-        alert("MetaMask is not installed. Please install MetaMask to continue.");
+        // If MetaMask is not installed, ask user if they want to download it
+        const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+        if (confirmation) {
+            window.open("https://metamask.io/download/", "_blank");
+        }
         return false;
     }
 }
@@ -112,8 +116,6 @@ window.onload = function () {
             if (isConnected) {
                 // Show the iframe Popup for bet selection
                 startPopup.style.display = "block";
-            } else {
-                alert("MetaMask connection is required to play.");
             }
         } else {
             document.querySelector('#startMenu .input-error').style.opacity = 1;
