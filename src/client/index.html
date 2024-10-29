@@ -62,105 +62,100 @@
     <script src="js/app.js"></script>
 
     <script>
+      document.addEventListener("DOMContentLoaded", function() {
+          const startButton = document.getElementById("startButton");
+          const iframe = document.getElementById("startPopup");
+          let hasSentData = false; // Ensure data is sent only once per connection
+          let lastWalletBalance = null; // Track last sent Wallet Balance
 
-    document.addEventListener("DOMContentLoaded", function() {
-        if (typeof window.ethereum !== 'undefined') {
-            const web3 = new Web3(window.ethereum);
-            const usdcContractAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-            const usdcAbi = [
-                {
-                    "constant": true,
-                    "inputs": [{"name": "_owner", "type": "address"}],
-                    "name": "balanceOf",
-                    "outputs": [{"name": "balance", "type": "uint256"}],
-                    "type": "function"
-                }
-            ];
+          // Only define Web3 and MetaMask-related functions when the Play button is pressed
+          startButton.onclick = async function() {
+              if (typeof window.ethereum === 'undefined') {
+                  // If MetaMask is not installed, ask user if they want to download it
+                  const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+                  if (confirmation) {
+                      window.open("https://metamask.io/download/", "_blank");
+                  }
+                  return;
+              }
 
-            const iframe = document.getElementById("startPopup");
-            let hasSentData = false; // Ensure data is sent only once per connection
-            let lastWalletBalance = null; // Track last sent Wallet Balance
+              const web3 = new Web3(window.ethereum);
+              const usdcContractAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+              const usdcAbi = [
+                  {
+                      "constant": true,
+                      "inputs": [{"name": "_owner", "type": "address"}],
+                      "name": "balanceOf",
+                      "outputs": [{"name": "balance", "type": "uint256"}],
+                      "type": "function"
+                  }
+              ];
 
-            async function sendWalletDataToPopup() {
-                try {
-                    const accounts = await ethereum.request({ method: 'eth_accounts' });
-                    if (accounts.length > 0) {
-                        const walletAddress = accounts[0];
-                        const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
-                        const balance = await usdcContract.methods.balanceOf(walletAddress).call();
-                        const walletBalance = web3.utils.fromWei(balance, 'mwei');
+              // Function to send wallet data to popup
+              async function sendWalletDataToPopup() {
+                  try {
+                      const accounts = await ethereum.request({ method: 'eth_accounts' });
+                      if (accounts.length > 0) {
+                          const walletAddress = accounts[0];
+                          const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
+                          const balance = await usdcContract.methods.balanceOf(walletAddress).call();
+                          const walletBalance = web3.utils.fromWei(balance, 'mwei');
 
-                        // Check if there's need to reset hasSentData based on balance changes
-                        if (walletBalance !== lastWalletBalance) {
-                            hasSentData = false; // Reset if balance has changed
-                            lastWalletBalance = walletBalance; // Update the last known balance
-                        }
+                          // Check if there's need to reset hasSentData based on balance changes
+                          if (walletBalance !== lastWalletBalance) {
+                              hasSentData = false; // Reset if balance has changed
+                              lastWalletBalance = walletBalance; // Update the last known balance
+                          }
 
-                        // Send data only if not already sent or balance has changed
-                        if (!hasSentData) {
-                            hasSentData = true;
+                          // Send data only if not already sent or balance has changed
+                          if (!hasSentData) {
+                              hasSentData = true;
 
-                            // Store wallet info in localStorage for potential reload
-                            localStorage.setItem('walletAddress', walletAddress);
-                            localStorage.setItem('walletBalance', walletBalance);
+                              // Store wallet info in localStorage for potential reload
+                              localStorage.setItem('walletAddress', walletAddress);
+                              localStorage.setItem('walletBalance', walletBalance);
 
-                            // Send wallet data to the Popup
-                            iframe.contentWindow.postMessage({
-                                walletAddress: walletAddress,
-                                walletBalance: walletBalance
-                            }, "*");
-                        }
-                    }
-                } catch (error) {
-                    console.error("Error retrieving wallet data:", error);
-                }
-            }
+                              // Send wallet data to the Popup
+                              iframe.contentWindow.postMessage({
+                                  walletAddress: walletAddress,
+                                  walletBalance: walletBalance
+                              }, "*");
+                          }
+                      }
+                  } catch (error) {
+                      console.error("Error retrieving wallet data:", error);
+                  }
+              }
 
-            // Send data to the Popup when it's loaded and reset flag to allow one-time sending
-            iframe.addEventListener("load", () => {
-                hasSentData = false; // Reset flag on iframe load to allow sending data
-                sendWalletDataToPopup();
-            });
+              try {
+                  const hasConnectedBefore = localStorage.getItem('hasConnectedBefore') === 'true';
+                  await ethereum.request({ method: 'eth_requestAccounts' });
 
-            // Detect when MetaMask account is changed and reset flag to allow one-time sending
-            ethereum.on('accountsChanged', async () => {
-                hasSentData = false; // Reset flag on account change
-                await sendWalletDataToPopup();
-            });
+                  if (!hasConnectedBefore) {
+                      localStorage.setItem('hasConnectedBefore', 'true');
+                      window.location.reload();
+                  } else {
+                      sendWalletDataToPopup();
+                      iframe.style.display = "block"; // Show Popup once connected
+                  }
+              } catch (error) {
+                  console.error("MetaMask connection failed:", error);
+              }
 
-            // Trigger MetaMask connection on "Play" button click only
-            document.getElementById('startButton').onclick = async function() {
-                try {
-                    const hasConnectedBefore = localStorage.getItem('hasConnectedBefore') === 'true';
-                    await ethereum.request({ method: 'eth_requestAccounts' });
+              // Listen for messages from the iframe to hide it
+              window.addEventListener("message", function(event) {
+                  if (event.data.action === "hideIframe") {
+                      iframe.style.display = "none";
+                  }
+              }, false);
 
-                    if (!hasConnectedBefore) {
-                        localStorage.setItem('hasConnectedBefore', 'true');
-                        window.location.reload();
-                    } else {
-                        sendWalletDataToPopup();
-                        iframe.style.display = "block"; // Show Popup once connected
-                    }
-                } catch (error) {
-                    console.error("MetaMask connection failed:", error);
-                }
-            };
-
-            // Listen for messages from the iframe to hide it
-            window.addEventListener("message", function(event) {
-                if (event.data.action === "hideIframe") {
-                    iframe.style.display = "none";
-                }
-            }, false);
-
-        } else {
-            // If MetaMask is not installed, ask user if they want to download it
-            const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
-            if (confirmation) {
-                window.open("https://metamask.io/download/", "_blank");
-            }
-        }
-    });
-    </script>
+              // Detect when MetaMask account is changed and reset flag to allow one-time sending
+              ethereum.on('accountsChanged', async () => {
+                  hasSentData = false; // Reset flag on account change
+                  await sendWalletDataToPopup();
+              });
+          };
+      });
+  </script>
 </body>
 </html>
