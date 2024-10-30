@@ -84,7 +84,7 @@ async function checkMetaMaskConnection(retries = 3, delay = 500) {
         } else if (i === retries) {
             // Only prompt after all retry attempts on mobile
             if (isMobileDevice) {
-                const openInMetaMask = confirm("Please open this app in MetaMask");
+                const openInMetaMask = confirm("Please open this app in the MetaMask mobile browser. If MetaMask is not installed, you will need to download it.");
                 if (openInMetaMask) {
                     window.open("https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com", "_blank");
                 }
