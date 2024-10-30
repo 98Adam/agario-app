@@ -65,7 +65,7 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Function to check MetaMask Connection with only direct MetaMask deeplink on mobile
+// Function to check MetaMask Connection with a single ethereum:// redirect on mobile
 async function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
 
@@ -77,8 +77,8 @@ async function checkMetaMaskConnection() {
             if (accounts && accounts.length > 0) {
                 return true;
             } else if (isMobileDevice) {
-                // Open the MetaMask mobile app directly via the Dapp link
-                window.location.replace("https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com");
+                // Open MetaMask app using only the ethereum protocol
+                window.location.href = "ethereum://";
                 return false;
             }
         } catch (error) {
@@ -86,8 +86,8 @@ async function checkMetaMaskConnection() {
             return false;
         }
     } else if (isMobileDevice) {
-        // If MetaMask isn't available but on mobile, directly open the MetaMask Dapp link
-        window.location.replace("https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com");
+        // On mobile, attempt to open MetaMask directly without backup URLs
+        window.location.href = "ethereum://";
         return false;
     }
 
