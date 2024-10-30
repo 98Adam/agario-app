@@ -65,9 +65,10 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Function to check MetaMask Connection with a single ethereum:// redirect on mobile
+// Function to check MetaMask Connection 
 async function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+    const metaMaskURL = "metamask://dapp/agario-app-f1a9418e9c2c.herokuapp.com";
 
     const isMetaMaskAvailable = () => typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
 
@@ -77,8 +78,8 @@ async function checkMetaMaskConnection() {
             if (accounts && accounts.length > 0) {
                 return true;
             } else if (isMobileDevice) {
-                // Open MetaMask app using only the ethereum protocol
-                window.location.href = "ethereum://";
+                // Redirect to structured metamask:// deep link on mobile
+                window.location.href = metaMaskURL;
                 return false;
             }
         } catch (error) {
@@ -86,12 +87,12 @@ async function checkMetaMaskConnection() {
             return false;
         }
     } else if (isMobileDevice) {
-        // On mobile, attempt to open MetaMask directly without backup URLs
-        window.location.href = "ethereum://";
+        // Fallback attempt for MetaMask on mobile with structured URL
+        window.location.href = metaMaskURL;
         return false;
     }
 
-    // For desktop users, suggest installing MetaMask if not available
+    // Suggest MetaMask installation for desktop if not available
     if (!isMetaMaskAvailable() && !isMobileDevice) {
         const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
         if (confirmation) {
