@@ -75,14 +75,9 @@ async function checkMetaMaskConnection() {
             console.error("Error checking MetaMask connection:", error);
             return false;
         }
-    } else {
-        // If MetaMask is not installed, ask user if they want to download it
-        const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
-        if (confirmation) {
-            window.open("https://metamask.io/download/", "_blank");
-        }
-        return false;
     }
+    // Return false if MetaMask is not installed
+    return false;
 }
 
 // Function to request MetaMask Connection
