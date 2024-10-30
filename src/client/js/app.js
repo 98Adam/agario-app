@@ -77,13 +77,11 @@ async function checkMetaMaskConnection() {
             if (accounts && accounts.length > 0) {
                 return true;
             } else if (isMobileDevice) {
-                const openInMetaMask = confirm("Please open this app in MetaMask");
-                if (openInMetaMask) {
-                    // Directly set location to MetaMask URL
-                    setTimeout(() => {
-                        window.location.href = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
-                    }, 500); // Adding delay to allow confirmation to settle
-                }
+                // Attempt to directly open MetaMask mobile app
+                window.location.href = "ethereum://";
+                setTimeout(() => {
+                    window.location.href = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+                }, 1500);  // Wait for MetaMask to load; otherwise, redirect to app link.
                 return false;
             }
         } catch (error) {
@@ -91,13 +89,11 @@ async function checkMetaMaskConnection() {
             return false;
         }
     } else if (isMobileDevice) {
-        const openInMetaMask = confirm("Please open this app in MetaMask");
-        if (openInMetaMask) {
-            // Directly set location to MetaMask URL
-            setTimeout(() => {
-                window.location.href = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
-            }, 500); // Adding delay to allow confirmation to settle
-        }
+        // Directly attempt to open MetaMask if not detected
+        window.location.href = "ethereum://";
+        setTimeout(() => {
+            window.location.href = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+        }, 1500);  // Wait before redirecting to app link.
         return false;
     }
 
