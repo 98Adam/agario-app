@@ -93,7 +93,7 @@ async function checkMetaMaskConnection(retries = 3, delay = 500) {
                     window.open("https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com", "_blank");
                 }
             } else {
-                // On desktop, ask to install MetaMask
+                // On desktop, prompt to install MetaMask
                 const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
                 if (confirmation) {
                     window.open("https://metamask.io/download/", "_blank");
@@ -107,7 +107,7 @@ async function checkMetaMaskConnection(retries = 3, delay = 500) {
     }
 }
 
-// Function to request MetaMask Connection explicitly
+// Function to request MetaMask Connection
 async function connectMetaMask() {
     try {
         const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
@@ -143,7 +143,6 @@ window.onload = function () {
             document.querySelector('#startMenu .input-error').style.opacity = 1;
         }
     };
-};
 
     // Settings Menu toggle
     var settingsMenu = document.getElementById('settingsButton');
