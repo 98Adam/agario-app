@@ -67,7 +67,10 @@ function validNick() {
 
 // Function to check MetaMask Connection
 async function checkMetaMaskConnection() {
-    if (typeof window.ethereum !== 'undefined') {
+    const isMetaMaskInstalled = typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+
+    if (isMetaMaskInstalled) {
         try {
             const accounts = await ethereum.request({ method: 'eth_accounts' });
             return accounts.length > 0; // Returns true if connected, false otherwise
@@ -76,12 +79,20 @@ async function checkMetaMaskConnection() {
             return false;
         }
     } else {
-        // If MetaMask is not installed, ask user if they want to download it
+        // If MetaMask is not installed, ask the user if they want to download it
         const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
         if (confirmation) {
             window.open("https://metamask.io/download/", "_blank");
         }
         return false;
+    }
+
+    // If MetaMask is installed on a mobile device, open in MetaMask's browser
+    if (isMetaMaskInstalled && isMobileDevice) {
+        const openInMetaMask = confirm("Please open this app in MetaMask");
+        if (openInMetaMask) {
+            window.open("https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com", "_blank");
+        }
     }
 }
 
