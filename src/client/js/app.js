@@ -76,7 +76,11 @@ async function checkMetaMaskConnection() {
             return false;
         }
     } else {
-        console.warn("MetaMask is not detected.");
+        // If MetaMask is not installed, ask user if they want to download it
+        const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+        if (confirmation) {
+            window.open("https://metamask.io/download/", "_blank");
+        }
         return false;
     }
 }
