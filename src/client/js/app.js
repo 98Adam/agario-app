@@ -65,46 +65,52 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Function to check MetaMask Connection with enhanced detection
-async function checkMetaMaskConnection(retries = 3, delay = 500) {
+// Function to check MetaMask Connection with enhanced mobile redirect
+async function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
 
-    // Function to check if MetaMask is installed and available
-    const isMetaMaskAvailable = () => {
-        return typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
-    };
+    const isMetaMaskAvailable = () => typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
 
-    // Retry logic to detect MetaMask more reliably
-    for (let i = 0; i <= retries; i++) {
-        if (isMetaMaskAvailable()) {
-            try {
-                const accounts = await ethereum.request({ method: 'eth_accounts' });
-                return accounts.length > 0; // Returns true if connected, false otherwise
-            } catch (error) {
-                console.error("Error checking MetaMask connection:", error);
-                return false;
-            }
-        } else if (i === retries) {
-            // Final attempt failed, handle as if MetaMask is not installed
-            if (isMobileDevice) {
-                // Prompt to open in MetaMask mobile browser on mobile
+    if (isMetaMaskAvailable()) {
+        try {
+            const accounts = await ethereum.request({ method: 'eth_accounts' });
+            if (accounts && accounts.length > 0) {
+                return true;
+            } else if (isMobileDevice) {
                 const openInMetaMask = confirm("Please open this app in MetaMask");
                 if (openInMetaMask) {
-                    window.open("https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com", "_blank");
+                    // Directly set location to MetaMask URL
+                    setTimeout(() => {
+                        window.location.href = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+                    }, 500); // Adding delay to allow confirmation to settle
                 }
-            } else {
-                // On desktop, prompt to install MetaMask
-                const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
-                if (confirmation) {
-                    window.open("https://metamask.io/download/", "_blank");
-                }
+                return false;
             }
+        } catch (error) {
+            console.error("Error checking MetaMask connection:", error);
             return false;
         }
-
-        // Wait for a short period before retrying
-        await new Promise(res => setTimeout(res, delay));
+    } else if (isMobileDevice) {
+        const openInMetaMask = confirm("Please open this app in MetaMask");
+        if (openInMetaMask) {
+            // Directly set location to MetaMask URL
+            setTimeout(() => {
+                window.location.href = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+            }, 500); // Adding delay to allow confirmation to settle
+        }
+        return false;
     }
+
+    // For desktop users, suggest installing MetaMask if not available
+    if (!isMetaMaskAvailable() && !isMobileDevice) {
+        const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+        if (confirmation) {
+            window.open("https://metamask.io/download/", "_blank");
+        }
+        return false;
+    }
+
+    return false;
 }
 
 // Function to request MetaMask Connection
