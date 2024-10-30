@@ -14,6 +14,7 @@ var debug = function (args) {
     }
 };
 
+// Detect if user is on a mobile device
 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
@@ -67,7 +68,10 @@ function validNick() {
 
 // Function to check MetaMask Connection
 async function checkMetaMaskConnection() {
-    if (typeof window.ethereum !== 'undefined') {
+    const isMetaMaskInstalled = typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+
+    if (isMetaMaskInstalled) {
         try {
             const accounts = await ethereum.request({ method: 'eth_accounts' });
             return accounts.length > 0; // Returns true if connected, false otherwise
@@ -82,6 +86,14 @@ async function checkMetaMaskConnection() {
             window.open("https://metamask.io/download/", "_blank");
         }
         return false;
+    }
+
+    // If MetaMask is installed on a mobile device, prompt to open in MetaMask mobile browser
+    if (isMetaMaskInstalled && isMobileDevice) {
+        const openInMetaMask = confirm("Open this app in the MetaMask mobile browser?");
+        if (openInMetaMask) {
+            window.open("https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com", "_blank");
+        }
     }
 }
 
