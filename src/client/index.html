@@ -138,7 +138,7 @@
 
         // Trigger MetaMask connection or installation on "Play" button click
         document.getElementById('startButton').onclick = async function() {
-            // Check if MetaMask is not installed and prompt for download if on mobile or desktop
+            // Check if MetaMask is not installed and prompt for download if not
             if (!isMetaMaskInstalled) {
                 if (isMobileDevice) {
                     const confirmation = confirm("Please open this app in MetaMask");
