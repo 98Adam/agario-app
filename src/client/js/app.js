@@ -65,29 +65,34 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Function to check MetaMask Connection with enhanced mobile redirect
+// Function to check MetaMask Connection with a single deeplink attempt
 async function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+    const metamaskDappLink = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
 
+    // Check if MetaMask is available in the browser
     const isMetaMaskAvailable = () => typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
 
+    // If MetaMask is available in the browser (desktop or mobile), check accounts
     if (isMetaMaskAvailable()) {
         try {
             const accounts = await ethereum.request({ method: 'eth_accounts' });
             if (accounts && accounts.length > 0) {
-                return true;
+                return true;  // MetaMask is connected
             } else if (isMobileDevice) {
-                // Attempt to open MetaMask using its deeplink format
-                window.location.href = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+                // If mobile and MetaMask is installed but not connected, use the MetaMask deeplink
+                window.location.href = metamaskDappLink;
                 return false;
             }
         } catch (error) {
             console.error("Error checking MetaMask connection:", error);
             return false;
         }
-    } else if (isMobileDevice) {
-        // Redirect directly to the MetaMask app link if MetaMask is not detected
-        window.location.href = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+    }
+
+    // If MetaMask is not detected and user is on mobile, directly attempt the MetaMask app link
+    if (isMobileDevice) {
+        window.location.href = metamaskDappLink;
         return false;
     }
 
