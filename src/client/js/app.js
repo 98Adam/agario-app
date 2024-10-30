@@ -14,7 +14,6 @@ var debug = function (args) {
     }
 };
 
-// Detect if user is on a mobile device
 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
@@ -41,6 +40,7 @@ function startGame(type, betValue) {
 
     console.log("Starting Game with bet:", betValue); // Use betValue as needed
 
+    // Remaining existing code in startGame...
     global.screen.width = window.innerWidth;
     global.screen.height = window.innerHeight;
 
@@ -65,40 +65,23 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Function to check MetaMask Connection with retry logic
-async function checkMetaMaskConnection(retries = 3, delay = 500) {
-    const isMobileDevice = global.mobile;
-
-    for (let i = 0; i <= retries; i++) {
-        const isMetaMaskInstalled = typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
-
-        // If MetaMask is installed, proceed with checking connection
-        if (isMetaMaskInstalled) {
-            try {
-                const accounts = await ethereum.request({ method: 'eth_accounts' });
-                return accounts.length > 0; // Returns true if connected, false otherwise
-            } catch (error) {
-                console.error("Error checking MetaMask connection:", error);
-                return false;
-            }
-        } else if (i === retries) {
-            // Only prompt after all retry attempts on mobile
-            if (isMobileDevice) {
-                const openInMetaMask = confirm("Please open this app in the MetaMask mobile browser. If MetaMask is not installed, you will need to download it.");
-                if (openInMetaMask) {
-                    window.open("https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com", "_blank");
-                }
-            } else {
-                const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
-                if (confirmation) {
-                    window.open("https://metamask.io/download/", "_blank");
-                }
-            }
+// Function to check MetaMask Connection
+async function checkMetaMaskConnection() {
+    if (typeof window.ethereum !== 'undefined') {
+        try {
+            const accounts = await ethereum.request({ method: 'eth_accounts' });
+            return accounts.length > 0; // Returns true if connected, false otherwise
+        } catch (error) {
+            console.error("Error checking MetaMask connection:", error);
             return false;
         }
-
-        // Delay before retrying
-        await new Promise(res => setTimeout(res, delay));
+    } else {
+        // If MetaMask is not installed, ask user if they want to download it
+        const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+        if (confirmation) {
+            window.open("https://metamask.io/download/", "_blank");
+        }
+        return false;
     }
 }
 
@@ -138,7 +121,6 @@ window.onload = function () {
             document.querySelector('#startMenu .input-error').style.opacity = 1;
         }
     };
-};
 
     // Settings Menu toggle
     var settingsMenu = document.getElementById('settingsButton');
