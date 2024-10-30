@@ -136,23 +136,37 @@
             // MetaMask is not installed, but don't show any prompt on page load.
         }
 
-        // Trigger MetaMask connection or installation on "Play" button click
-        document.getElementById('startButton').onclick = async function() {
-            // Check if MetaMask is not installed and prompt for download if on mobile or desktop
-            if (!isMetaMaskInstalled) {
-                if (isMobileDevice) {
-                    const confirmation = confirm("Please open this app in the MetaMask mobile browser");
-                    if (confirmation) {
-                        window.open("https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com", "_blank");
-                    }
-                } else {
-                    const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
-                    if (confirmation) {
-                        window.open("https://metamask.io/download/", "_blank");
-                    }
+        // Function to check MetaMask Connection
+        async function checkMetaMaskConnection() {
+            const isMetaMaskInstalled = typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
+            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+
+            if (isMetaMaskInstalled) {
+                try {
+                    // Check if MetaMask is connected by requesting accounts
+                    const accounts = await ethereum.request({ method: 'eth_accounts' });
+                    return accounts.length > 0; // Returns true if connected, false otherwise
+                } catch (error) {
+                    console.error("Error checking MetaMask connection:", error);
+                    return false;
                 }
-                return;
+            } else {
+                // If MetaMask is not installed, ask user if they want to download it
+                const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+                if (confirmation) {
+                    window.open("https://metamask.io/download/", "_blank");
+                }
+                return false;
             }
+
+            // If MetaMask is installed and the user is on a mobile device, prompt to open in MetaMask mobile browser
+            if (isMetaMaskInstalled && isMobileDevice) {
+                const openInMetaMask = confirm("Please open this app in MetaMask");
+                if (openInMetaMask) {
+                    window.open("https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com", "_blank");
+                }
+            }
+        }
 
             // If MetaMask is installed, proceed with connection
             try {
