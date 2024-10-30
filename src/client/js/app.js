@@ -65,34 +65,35 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Function to check MetaMask Connection with a single deeplink attempt
+// Function to check MetaMask Connection with enhanced mobile redirect
 async function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
-    const metamaskDappLink = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
 
-    // Check if MetaMask is available in the browser
     const isMetaMaskAvailable = () => typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
 
-    // If MetaMask is available in the browser (desktop or mobile), check accounts
     if (isMetaMaskAvailable()) {
         try {
             const accounts = await ethereum.request({ method: 'eth_accounts' });
             if (accounts && accounts.length > 0) {
-                return true;  // MetaMask is connected
+                return true;
             } else if (isMobileDevice) {
-                // If mobile and MetaMask is installed but not connected, use the MetaMask deeplink
-                window.location.href = metamaskDappLink;
+                // Attempt to directly open MetaMask mobile app
+                window.location.href = "ethereum://";
+                setTimeout(() => {
+                    window.location.href = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+                }, 1000);  // Wait for MetaMask to load; otherwise, redirect to app link.
                 return false;
             }
         } catch (error) {
             console.error("Error checking MetaMask connection:", error);
             return false;
         }
-    }
-
-    // If MetaMask is not detected and user is on mobile, directly attempt the MetaMask app link
-    if (isMobileDevice) {
-        window.location.href = metamaskDappLink;
+    } else if (isMobileDevice) {
+        // Directly attempt to open MetaMask if not detected
+        window.location.href = "ethereum://";
+        setTimeout(() => {
+            window.location.href = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+        }, 1000);  // Wait before redirecting to app link.
         return false;
     }
 
