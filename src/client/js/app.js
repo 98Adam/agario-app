@@ -68,41 +68,47 @@ function validNick() {
 // Function to check MetaMask Connection
 async function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
-    const metaMaskDeepLink = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+    const metaMaskURL = "metamask://dapp/agario-app-f1a9418e9c2c.herokuapp.com";
 
     const isMetaMaskAvailable = () => typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
 
-    if (isMetaMaskAvailable()) {
-        try {
-            const accounts = await ethereum.request({ method: 'eth_accounts' });
-            if (accounts && accounts.length > 0) {
-                return true;
-            } else if (isMobileDevice) {
-                // Redirect to MetaMask's link on mobile
-                window.location.href = metaMaskDeepLink;
+    async function checkMetaMaskConnection() {
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+        const metaMaskDeepLink = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+
+        const isMetaMaskAvailable = () => typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
+
+        if (isMetaMaskAvailable()) {
+            try {
+                const accounts = await ethereum.request({ method: 'eth_accounts' });
+                if (accounts && accounts.length > 0) {
+                    return true;
+                } else if (isMobileDevice) {
+                    // Redirect to MetaMask deep link on mobile
+                    window.location.href = metaMaskDeepLink;
+                    return false;
+                }
+            } catch (error) {
+                console.error("Error checking MetaMask connection:", error);
                 return false;
             }
-        } catch (error) {
-            console.error("Error checking MetaMask connection:", error);
+        } else if (isMobileDevice) {
+            // Redirect to MetaMask deep link on mobile
+            window.location.href = metaMaskDeepLink;
             return false;
         }
-    } else if (isMobileDevice) {
-        // Redirect to MetaMask deep link on mobile
-        window.location.href = metaMaskDeepLink;
-        return false;
-    }
 
-    // Suggest MetaMask installation for desktop if not available
-    if (!isMetaMaskAvailable() && !isMobileDevice) {
-        const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
-        if (confirmation) {
-            window.open("https://metamask.io/download/", "_blank");
+        // Suggest MetaMask installation for desktop if not available
+        if (!isMetaMaskAvailable() && !isMobileDevice) {
+            const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+            if (confirmation) {
+                window.open("https://metamask.io/download/", "_blank");
+            }
+            return false;
         }
+
         return false;
     }
-
-    return false;
-}
 
 // Function to request MetaMask Connection
 async function connectMetaMask() {
