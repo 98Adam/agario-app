@@ -75,8 +75,8 @@ async function checkMetaMaskConnection() {
         try {
             const accounts = await ethereum.request({ method: 'eth_accounts' });
             if (accounts && accounts.length > 0) {
-                // User is connected, navigate to the webpage
-                window.location.href = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
+                // User is connected, open MetaMask with the deep link
+                window.open(metaMaskURL, "_blank");
                 return true;
             } else if (isMobileDevice) {
                 // Redirect to structured metamask:// deep link on mobile
