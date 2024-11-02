@@ -67,11 +67,23 @@ function validNick() {
 
 async function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
-    const metaMaskDeepLink = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com/";
+    const dappURL = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
+    const metaMaskDeepLink = `https://metamask.app.link/dapp/${encodeURIComponent(dappURL)}`;
 
     if (isMobileDevice) {
-        // Redirect to MetaMask deep link on mobile devices
-        window.location.href = metaMaskDeepLink;
+        // Create an anchor element for the MetaMask deep link
+        const metaMaskLink = document.createElement('a');
+        metaMaskLink.href = metaMaskDeepLink;
+        metaMaskLink.target = '_self';
+        metaMaskLink.style.display = 'none';
+        document.body.appendChild(metaMaskLink);
+
+        // Programmatically click the link
+        metaMaskLink.click();
+
+        // Clean up by removing the anchor element
+        document.body.removeChild(metaMaskLink);
+
         return false;
     }
 
