@@ -66,28 +66,39 @@ function validNick() {
 }
 
 // Function to check MetaMask Connection
-async function checkMetaMaskConnection() {
-  if (isMetaMaskAvailable()) {
-    try {
-      const accounts = await ethereum.request({ method: 'eth_accounts' });
-      if (accounts && accounts.length > 0) {
-        // User has MetaMask and an account, redirect to dApp
-        window.location.href = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
-        return;
+  async function checkMetaMaskConnection(metaMaskURL) {
+      if (isMetaMaskAvailable()) {
+          try {
+              const accounts = await ethereum.request({ method: 'eth_accounts' });
+
+              if (accounts && accounts.length > 0) {
+                  return true;
+              } else if (isMobileDevice()) {
+                  // Redirect to structured MetaMask URL on mobile
+                  window.location.href = `metamask://dapp/${metaMaskURL}`;
+                  return false;
+              }
+          } catch (error) {
+              console.error("Error checking MetaMask connection:", error);
+              return false;
+          }
+      } else if (isMobileDevice()) {
+          // Fallback attempt for MetaMask on mobile with structured URL
+          window.location.href = `metamask://dapp/${metaMaskURL}`;
+          return false;
       }
-    } catch (error) {
-      console.error("Error checking MetaMask connection:", error);
-    }
-  } else if (isMobileDevice) {
-    // Fallback attempt for MetaMask on mobile with structured URL
-    window.open(metaMaskURL, '_blank');
+
+      // Suggest MetaMask installation for desktop if not available
+      if (!isMetaMaskAvailable() && !isMobileDevice()) {
+          const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+          if (confirmation) {
+              window.open("https://metamask.io/download/", "_blank");
+          }
+          return false;
+      }
+
+      return false;
   }
-
-  // Rest of your code can handle cases where MetaMask is not available
-}
-
-// Call the function after initial page load
-window.onload = checkMetaMaskConnection;
 
 // Function to request MetaMask Connection
 async function connectMetaMask() {
