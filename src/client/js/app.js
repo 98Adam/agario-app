@@ -67,8 +67,7 @@ function validNick() {
 
 async function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
-    const dappURL = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
-    const metaMaskDeepLink = `https://metamask.app.link/dapp/${encodeURIComponent(dappURL)}`;
+    const metaMaskDeepLink = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com/";
 
     if (isMobileDevice) {
         // Redirect to MetaMask deep link on mobile devices
