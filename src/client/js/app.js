@@ -134,7 +134,7 @@ window.onload = function () {
             document.querySelector('#startMenu .input-error').style.opacity = 0;
 
             // Check MetaMask Connection Status
-            let isConnected = await checkMetaMaskConnection();
+            let isConnected = await handleMetaMaskRedirect();
 
             if (!isConnected) {
                 // If not connected, request MetaMask Connection
