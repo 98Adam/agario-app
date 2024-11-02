@@ -68,7 +68,7 @@ function validNick() {
 // Function to check MetaMask Connection
 async function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
-    const metaMaskURL = "metamask://dapp/agario-app-f1a9418e9c2c.herokuapp.com";
+    const metaMaskURL = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com/";
 
     const isMetaMaskAvailable = () => typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
 
@@ -78,7 +78,7 @@ async function checkMetaMaskConnection() {
             if (accounts && accounts.length > 0) {
                 return true;
             } else if (isMobileDevice) {
-                // Redirect to structured metamask:// deep link on mobile
+                // Redirect directly to MetaMask's in-app browser on mobile
                 window.location.href = metaMaskURL;
                 return false;
             }
@@ -87,7 +87,7 @@ async function checkMetaMaskConnection() {
             return false;
         }
     } else if (isMobileDevice) {
-        // Fallback attempt for MetaMask on mobile with structured URL
+        // Directly open MetaMask's in-app browser on mobile
         window.location.href = metaMaskURL;
         return false;
     }
@@ -103,6 +103,7 @@ async function checkMetaMaskConnection() {
 
     return false;
 }
+
 
 // Function to request MetaMask Connection
 async function connectMetaMask() {
