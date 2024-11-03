@@ -68,24 +68,23 @@ function validNick() {
 // Function to check MetaMask Connection
 function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
-    const isMetaMaskMobile = /MetaMask/i.test(navigator.userAgent); // Detect MetaMask mobile browser
+    const isMetaMaskBrowser = /MetaMask/i.test(navigator.userAgent);
     const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
 
-    if (isMobileDevice && !isMetaMaskMobile) {
-        // Show instructions only if not in MetaMask mobile browser
+    if (isMobileDevice && !isMetaMaskBrowser) {
+        // Show alert only if not already in MetaMask's browser
         alert(`Please copy the following link and open it in MetaMask's browser:\n\n${dAppURL}`);
         return false;
-    } else if (isMobileDevice && isMetaMaskMobile) {
-        // Directly navigate to the dApp if already in MetaMask mobile browser
+    } else if (isMobileDevice && isMetaMaskBrowser) {
+        // Already in MetaMask's browser, proceed as usual
         window.location.href = dAppURL;
-        return false;
+        return true;
     } else {
-        // Check for MetaMask on desktop
+        // Desktop logic for MetaMask check
         if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
-            // MetaMask is available
             return true;
         } else {
-            // MetaMask is not installed
+            // Suggest installation for desktop if MetaMask is not detected
             const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
             if (confirmation) {
                 window.open("https://metamask.io/download/", "_blank");
