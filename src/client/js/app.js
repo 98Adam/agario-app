@@ -68,11 +68,16 @@ function validNick() {
 // Function to check MetaMask Connection
 function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
-    const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com";
+    const isMetaMaskMobile = /MetaMask/i.test(navigator.userAgent); // Detect MetaMask mobile browser
+    const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
 
-    if (isMobileDevice) {
-        // Display a prompt with instructions for mobile users
+    if (isMobileDevice && !isMetaMaskMobile) {
+        // Show instructions only if not in MetaMask mobile browser
         alert(`Please copy the following link and open it in MetaMask's browser:\n\n${dAppURL}`);
+        return false;
+    } else if (isMobileDevice && isMetaMaskMobile) {
+        // Directly navigate to the dApp if already in MetaMask mobile browser
+        window.location.href = dAppURL;
         return false;
     } else {
         // Check for MetaMask on desktop
