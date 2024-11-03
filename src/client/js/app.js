@@ -73,7 +73,7 @@ async function checkMetaMaskConnection() {
 
     if (isMobileDevice && !isMetaMaskBrowser) {
         // Show alert only if not already inside MetaMask's browser
-        alert(`Please copy this link and open it inside MetaMask's browser for wallet connection:\n\n${dAppURL}`);
+        alert(`Please copy this link and open it in MetaMask's browser for wallet connection:\n\n${dAppURL}`);
         return false;
     }
 
