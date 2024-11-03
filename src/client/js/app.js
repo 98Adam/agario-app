@@ -14,6 +14,7 @@ var debug = function (args) {
     }
 };
 
+// Check if user is on mobile device
 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
