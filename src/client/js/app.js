@@ -67,13 +67,13 @@ function validNick() {
 
 // Function to check MetaMask Connection
 async function checkMetaMaskConnection() {
-    const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
+    const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com";
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
     const isMetaMaskBrowser = window.ethereum && window.ethereum.isMetaMask;
 
     if (isMobileDevice && !isMetaMaskBrowser) {
-        // Show alert only if not already in MetaMask's browser
-        alert(`Please copy this link and open it inside MetaMask's browser:\n\n${dAppURL}`);
+        // Show alert only if not already inside MetaMask's browser
+        alert(`Please copy this link and open it inside MetaMask's browser for wallet connection:\n\n${dAppURL}`);
         return false;
     }
 
