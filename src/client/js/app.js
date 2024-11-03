@@ -71,11 +71,8 @@ function checkMetaMaskConnection() {
     const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
 
     if (isMobileDevice) {
-        // Display instructions with a clickable link for mobile users
-        const message = `Please copy and open this link in MetaMask's browser: <a href="${dAppURL}" target="_blank">${dAppURL}</a>`;
-
-        // Display the message in a modal or using document.write for simplicity
-        document.write(`<p style="font-size: 18px;">${message}</p>`);
+        // Display a prompt with instructions for mobile users
+        alert(`Please copy the following link and open it in MetaMask's browser:\n\n${dAppURL}`);
         return false;
     } else {
         // Check for MetaMask on desktop
