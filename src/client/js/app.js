@@ -66,44 +66,29 @@ function validNick() {
 }
 
 // Function to check MetaMask Connection
-async function checkMetaMaskConnection() {
+function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
-    const metaMaskURL = "https://metamask.app.link/dapp/agario-app-f1a9418e9c2c.herokuapp.com/";
+    const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
 
-    const isMetaMaskAvailable = () => typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
-
-    if (isMetaMaskAvailable()) {
-        try {
-            const accounts = await ethereum.request({ method: 'eth_accounts' });
-            if (accounts && accounts.length > 0) {
-                return true;
-            } else if (isMobileDevice) {
-                // Redirect directly to MetaMask's in-app browser on mobile
-                window.location.href = metaMaskURL;
-                return false;
+    if (isMobileDevice) {
+        // Display instructions for mobile users
+        alert(`Please copy and open this link in MetaMask's browser: ${dAppURL}`);
+        return false;
+    } else {
+        // Check for MetaMask on desktop
+        if (typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask) {
+            // MetaMask is available
+            return true;
+        } else {
+            // MetaMask is not installed
+            const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+            if (confirmation) {
+                window.open("https://metamask.io/download/", "_blank");
             }
-        } catch (error) {
-            console.error("Error checking MetaMask connection:", error);
             return false;
         }
-    } else if (isMobileDevice) {
-        // Directly open MetaMask's in-app browser on mobile
-        window.location.href = metaMaskURL;
-        return false;
     }
-
-    // Suggest MetaMask installation for desktop if not available
-    if (!isMetaMaskAvailable() && !isMobileDevice) {
-        const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
-        if (confirmation) {
-            window.open("https://metamask.io/download/", "_blank");
-        }
-        return false;
-    }
-
-    return false;
 }
-
 
 // Function to request MetaMask Connection
 async function connectMetaMask() {
