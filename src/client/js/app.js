@@ -60,7 +60,7 @@ function startGame(type, betValue) {
     global.socket = socket;
 }
 
-// Checks if the nickname contains valid alphanumeric characters
+// Checks if nickname contains valid alphanumerical
 function validNick() {
     var regex = /^\w*$/;
     return regex.exec(playerNameInput.value) !== null;
@@ -333,6 +333,15 @@ function setupSocket(socket) {
     socket.on('RIP', function () {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
+
+        // Show FinalPopup with match results (example values; replace with actual game data)
+        const position = 1; // Example position
+        const betAmount = global.betValue || 0; // Example bet amount
+        const wonAmount = 10; // Example won amount
+        const platformFee = 2; // Example platform fee
+        const gasFee = 0.5; // Example gas fee
+        showFinalPopup(position, betAmount, wonAmount, platformFee, gasFee);
+
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
             document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
@@ -348,8 +357,7 @@ function setupSocket(socket) {
         global.kicked = true;
         if (reason !== '') {
             render.drawErrorMessage('You were kicked for: ' + reason, graph, global.screen);
-        }
-        else {
+        } else {
             render.drawErrorMessage('You were kicked!', graph, global.screen);
         }
         socket.close();
@@ -437,6 +445,28 @@ function gameLoop() {
         socket.emit('0', window.canvas.target); // playerSendTarget "Heartbeat".
     }
 }
+
+// Function to show FinalPopup with all the Match Results
+function showFinalPopup(position, betAmount, wonAmount, platformFee = null, gasFee = null) {
+    const iframe = document.getElementById("finalPopup"); // Reference to FinalPopup iframe
+    iframe.style.display = "block";
+
+    // Send Match Results to the iframe
+    iframe.contentWindow.postMessage({
+        position: position,
+        betAmount: betAmount,
+        wonAmount: wonAmount,
+        platformFee: platformFee,
+        gasFee: gasFee
+    }, "*");
+}
+
+// Hide FinalPopup when "OK" button is pressed
+window.addEventListener("message", function(event) {
+    if (event.data.action === "hideIframe") {
+        document.getElementById("finalPopup").style.display = "none";
+    }
+}, false);
 
 // Handle Screen Resize
 window.addEventListener('resize', resize);
