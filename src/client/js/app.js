@@ -65,14 +65,27 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Function to check MetaMask Connection
 function checkMetaMaskConnection() {
     const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
     const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
 
     if (isMobileDevice) {
-        // Display a prompt with instructions for mobile users
-        alert(`Please copy the following link and open it in MetaMask's browser:\n\n${dAppURL}`);
+        // Create a clickable link message for mobile users
+        const linkDiv = document.createElement('div');
+        linkDiv.innerHTML = `
+            <p>Please copy and open this link in MetaMask's browser:</p>
+            <a href="${dAppURL}" target="_blank">${dAppURL}</a>
+        `;
+        linkDiv.style.position = 'fixed';
+        linkDiv.style.top = '20px';
+        linkDiv.style.left = '50%';
+        linkDiv.style.transform = 'translateX(-50%)';
+        linkDiv.style.backgroundColor = '#fff';
+        linkDiv.style.padding = '10px';
+        linkDiv.style.border = '1px solid #ddd';
+        linkDiv.style.boxShadow = '0px 4px 8px rgba(0, 0, 0, 0.2)';
+        linkDiv.style.zIndex = '1000';
+        document.body.appendChild(linkDiv);
         return false;
     } else {
         // Check for MetaMask on desktop
