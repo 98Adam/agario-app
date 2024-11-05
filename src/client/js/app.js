@@ -120,7 +120,7 @@ async function connectMetaMask() {
 
 window.onload = function () {
     var btn = document.getElementById('startButton');
-    var startPopup = document.getElementById('startPopup'); // Reference to iframe
+    var startPopup = document.getElementById('startPopup'); // Reference to StartPopup iframe
 
     btn.onclick = async function () {
         if (validNick()) {
@@ -335,9 +335,9 @@ function setupSocket(socket) {
         render.drawErrorMessage('You died!', graph, global.screen);
 
         // Retrieve Game Data for finalPopup
-        const position = global.finalPosition || 0; // Replace with position from leaderboard or ranking logic
+        const position = global.finalPosition || 0; // Replace with position from leaderboard
         const betAmount = global.betValue || 0; // Player's selected bet amount at game start
-        const wonAmount = global.wonAmount || 0; // Amount won by player, calculated based on game results
+        const wonAmount = global.wonAmount || 0; // Amount won, based on game results
         const gasFee = global.gasFee || 0; // Gas fee, if applicable
 
         // Show FinalPopup with Match Results
