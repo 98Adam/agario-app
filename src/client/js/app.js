@@ -462,10 +462,15 @@ function showFinalPopup(position, betAmount, wonAmount, gasFee = null) {
     }, "*");
 }
 
-// Hide FinalPopup when "OK" button is pressed
+// Redirect from Popup to Game Page
 window.addEventListener("message", function(event) {
-    if (event.data.action === "hideIframe") {
+    const data = event.data;
+
+    if (data.action === "hideIframe") {
         document.getElementById("finalPopup").style.display = "none";
+    } else if (data.action === "redirectToHome") {
+        // Redirect the main page to the home URL
+        window.location.href = "https://agario-app-f1a9418e9c2c.herokuapp.com";
     }
 }, false);
 
