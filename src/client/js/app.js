@@ -30,7 +30,7 @@ window.addEventListener("message", function(event) {
         startPopup.style.display = "none";
 
         // Start the game with the selected bet value
-        console.log("Bet confirmed:", data.betValue);
+        console.log("Amount confirmed:", data.betValue);
         startGame('player', data.betValue);  // Pass bet value to startGame
     }
 });
@@ -39,7 +39,7 @@ function startGame(type, betValue) {
     global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25);
     global.playerType = type;
 
-    console.log("Starting Game with bet:", betValue); // Use betValue as needed
+    console.log("Starting Game with amount:", betValue); // Use betValue as needed
 
     // Remaining existing code in startGame...
     global.screen.width = window.innerWidth;
@@ -60,7 +60,7 @@ function startGame(type, betValue) {
     global.socket = socket;
 }
 
-// Checks if nickname contains valid alphanumerical
+// Check if nickname is valid alphanumerical
 function validNick() {
     var regex = /^\w*$/;
     return regex.exec(playerNameInput.value) !== null;
@@ -107,7 +107,7 @@ async function checkMetaMaskConnection() {
     return false;
 }
 
-// Function to request MetaMask Connection
+// Function to request MetaMask
 async function connectMetaMask() {
     try {
         const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
@@ -127,16 +127,16 @@ window.onload = function () {
             // Hide error message
             document.querySelector('#startMenu .input-error').style.opacity = 0;
 
-            // Check MetaMask Connection Status
+            // Check MetaMask's Connection Status
             let isConnected = await checkMetaMaskConnection();
 
             if (!isConnected) {
-                // If not connected, request MetaMask Connection
+                // If not connected, request MetaMask
                 isConnected = await connectMetaMask();
             }
 
             if (isConnected) {
-                // Show the iframe Popup for bet selection
+                // Show startPopup for bet selection
                 startPopup.style.display = "block";
             }
         } else {
@@ -334,13 +334,14 @@ function setupSocket(socket) {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
 
-        // Show FinalPopup with match results (example values; replace with actual game data)
-        const position = 1; // Example position
-        const betAmount = global.betValue || 0; // Example bet amount
-        const wonAmount = 10; // Example won amount
-        const platformFee = 2; // Example platform fee
-        const gasFee = 0.5; // Example gas fee
-        showFinalPopup(position, betAmount, wonAmount, platformFee, gasFee);
+        // Retrieve Game Data for finalPopup
+        const position = global.finalPosition || 0; // Replace with position from leaderboard or ranking logic
+        const betAmount = global.betValue || 0; // Player's selected bet amount at game start
+        const wonAmount = global.wonAmount || 0; // Amount won by player, calculated based on game results
+        const gasFee = global.gasFee || 0; // Gas fee, if applicable
+
+        // Show FinalPopup with Match Results
+        showFinalPopup(position, betAmount, wonAmount, gasFee);
 
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
@@ -351,6 +352,7 @@ function setupSocket(socket) {
             }
         }, 2500);
     });
+
 
     socket.on('kick', function (reason) {
         global.gameStart = false;
@@ -447,7 +449,7 @@ function gameLoop() {
 }
 
 // Function to show FinalPopup with all the Match Results
-function showFinalPopup(position, betAmount, wonAmount, platformFee = null, gasFee = null) {
+function showFinalPopup(position, betAmount, wonAmount, gasFee = null) {
     const iframe = document.getElementById("finalPopup"); // Reference to FinalPopup iframe
     iframe.style.display = "block";
 
@@ -456,7 +458,6 @@ function showFinalPopup(position, betAmount, wonAmount, platformFee = null, gasF
         position: position,
         betAmount: betAmount,
         wonAmount: wonAmount,
-        platformFee: platformFee,
         gasFee: gasFee
     }, "*");
 }
