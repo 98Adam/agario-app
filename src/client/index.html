@@ -114,7 +114,7 @@
                                 localStorage.setItem('walletBalance', walletBalance);
 
                                 // Send wallet data to the Popup
-                                startPopup.contentWindow.postMessage({
+                                iframe.contentWindow.postMessage({
                                     walletAddress: walletAddress,
                                     walletBalance: walletBalance
                                 }, "*");
