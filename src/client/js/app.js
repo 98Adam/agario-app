@@ -30,7 +30,7 @@ window.addEventListener("message", function(event) {
         startPopup.style.display = "none";
 
         // Start the game with the selected bet value
-        console.log("Amount confirmed:", data.betValue);
+        console.log("Selected Amount:", data.betValue);
         startGame('player', data.betValue);  // Pass bet value to startGame
     }
 });
@@ -462,15 +462,10 @@ function showFinalPopup(position, betAmount, wonAmount, gasFee = null) {
     }, "*");
 }
 
-// Redirect from Popup to Game Page
+// Hide FinalPopup when "OK" button is pressed
 window.addEventListener("message", function(event) {
-    const data = event.data;
-
-    if (data.action === "hideIframe") {
+    if (event.data.action === "hideIframe") {
         document.getElementById("finalPopup").style.display = "none";
-    } else if (data.action === "redirectToHome") {
-        // Redirect the main page to the home URL
-        window.location.href = "https://agario-app-f1a9418e9c2c.herokuapp.com";
     }
 }, false);
 
