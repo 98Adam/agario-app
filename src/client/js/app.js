@@ -1,5 +1,5 @@
 // Import required modules
-import { initializeContract, placeBet, claimReward, validateAddress } from './smartContract.js';
+import { initializeContract, placeBet, claimReward } from './smartContract.js';
 import io from 'socket.io-client';
 import render from './render';
 import ChatClient from './chat-client';
@@ -60,7 +60,6 @@ async function startGame(type, betValue) {
     // Place the bet on the smart contract
     try {
         const account = (await web3.eth.getAccounts())[0];
-        validateAddress(account); // Ensure the account address is valid
         const txHash = await placeBet(contract, betValue, account);
         console.log("Bet placed successfully. Transaction hash:", txHash);
         global.currentMatchId = 1; // Placeholder; update with actual match ID logic
@@ -394,28 +393,8 @@ function setupSocket(socket) {
     });
 }
 
+// Helper function
 const isUnnamedCell = (name) => name.length < 1;
-
-const getPosition = (entity, player, screen) => {
-    return {
-        x: entity.x - player.x + screen.width / 2,
-        y: entity.y - player.y + screen.height / 2
-    }
-}
-
-window.requestAnimFrame = (function () {
-    return window.requestAnimationFrame ||
-        window.webkitRequestAnimationFrame ||
-        window.mozRequestAnimationFrame ||
-        function (callback) {
-            window.setTimeout(callback, 1000 / 60);
-        };
-})();
-
-window.cancelAnimFrame = (function (handle) {
-    return window.cancelAnimationFrame ||
-        window.mozCancelAnimationFrame;
-})();
 
 function animloop() {
     global.animLoopHandle = window.requestAnimFrame(animloop);
