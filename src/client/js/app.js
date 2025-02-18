@@ -1,5 +1,5 @@
 // Import required modules
-import { initializeContract, placeBet, claimReward, validateAddress } from './smartcontract.js';
+import { initializeContract, placeBet, claimReward, validateAddress } from './smartContract.js';
 import io from 'socket.io-client';
 import render from './render';
 import ChatClient from './chat-client';
