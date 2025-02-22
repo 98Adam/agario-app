@@ -44,32 +44,37 @@ async function startGame(type, betValue) {
 
     console.log("Starting Game with amount:", betValue);
 
-    // Initialize Web3 and contract
-    if (!web3 && window.ethereum) {
+    // Initialize Web3 and contract (skip if not deployed for now)
+    let isContractDeployed = false;
+    if (window.ethereum) {
         web3 = new Web3(window.ethereum);
         try {
             contract = await initializeContract(web3);
             console.log("Smart contract initialized:", contract);
+            isContractDeployed = true;
         } catch (error) {
-            console.error("Failed to initialize contract:", error);
-            alert("Failed to connect to the smart contract. Please try again.");
-            return;
+            console.warn("Smart contract not deployed or initialization failed (development mode):", error);
+            contract = null; // Set contract to null if not deployed
+            isContractDeployed = false;
         }
     }
 
-    // Place the bet on the smart contract and get matchId
+    // Place the bet (skip if contract not deployed, use mock data for testing)
     try {
-        const account = (await web3.eth.getAccounts())[0];
-        const txHash = await placeBet(contract, betValue, account);
-        console.log("Bet placed successfully. Transaction hash:", txHash);
-
-        // Fetch the current matchId from the smart contract
-        global.currentMatchId = await getCurrentMatchId(contract, account);
+        const account = (await web3?.eth.getAccounts())?.[0] || '0xMockAccount'; // Mock account for testing
+        if (isContractDeployed) {
+            const txHash = await placeBet(contract, betValue, account);
+            console.log("Bet placed successfully. Transaction hash:", txHash);
+            global.currentMatchId = await getCurrentMatchId(contract, account);
+        } else {
+            console.log("Smart contract not deployed. Using mock matchId for testing.");
+            global.currentMatchId = 1; // Mock matchId for development
+        }
         global.matchType = "MultiPlayer"; // Placeholder; update with actual match type logic
         global.betValue = betValue; // Store bet value globally
     } catch (error) {
         console.error("Failed to place bet:", error);
-        alert("Failed to place your bet. Please try again.");
+        alert("Failed to place your bet. Please try again (smart contract not deployed in development mode).");
         return;
     }
 
@@ -92,10 +97,13 @@ async function startGame(type, betValue) {
     global.socket = socket;
 }
 
-// New function to fetch current matchId from the smart contract
+// New function to fetch current matchId from the smart contract (optional for development)
 async function getCurrentMatchId(contract, account) {
     try {
-        // Fetch the latest matchId from the smart contract
+        if (!contract) {
+            console.warn("Contract not initialized. Returning mock matchId.");
+            return 1; // Mock matchId for development
+        }
         const latestMatchId = await contract.methods.currentMatchId().call({ from: account });
         return parseInt(latestMatchId); // Convert to integer if needed
     } catch (error) {
@@ -358,8 +366,22 @@ function setupSocket(socket) {
 
         const position = leaderboard.findIndex(entry => entry.id === player.id) + 1 || 0;
         const betAmount = global.betValue || 0;
-        const matchId = global.currentMatchId || 1; // Ensure this is tracked
-        const matchType = global.matchType || "MultiPlayer"; // Ensure this is tracked
+        const matchId = global.currentMatchId; // Use directly, no default
+        const matchType = global.matchType || "MultiPlayer";
+
+        // Skip popup if smart contract isn’t deployed
+        if (!contract) {
+            console.warn("Smart contract not deployed. Skipping final popup for development.");
+            window.setTimeout(() => {
+                document.getElementById('gameAreaWrapper').style.opacity = 0;
+                document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
+                if (global.animLoopHandle) {
+                    window.cancelAnimationFrame(global.animLoopHandle);
+                    global.animLoopHandle = undefined;
+                }
+            }, 2500);
+            return;
+        }
 
         try {
             const account = (await web3.eth.getAccounts())[0];
@@ -382,7 +404,7 @@ function setupSocket(socket) {
             }, "*");
         } catch (error) {
             console.error("Failed to claim reward or show results:", error);
-            alert("Failed to claim your reward or load match results. Please try again.");
+            alert("Failed to claim your reward or load match results. Please try again (smart contract not deployed).");
             return;
         }
 
@@ -415,6 +437,13 @@ function setupSocket(socket) {
 // Function to wait for match completion using event listener (with fallback polling)
 async function waitForMatchCompletion(matchId, contract) {
     return new Promise((resolve) => {
+        if (!contract) {
+            console.warn("Contract not initialized. Resolving immediately for development.");
+            resolve(); // Skip waiting if no contract (development mode)
+            return;
+        }
+
+        console.log("Waiting for MatchFinished event or polling for matchId:", matchId);
         // Attempt to listen for the MatchFinished event
         try {
             contract.events.MatchFinished({
@@ -431,6 +460,7 @@ async function waitForMatchCompletion(matchId, contract) {
                 const checkInterval = setInterval(async () => {
                     try {
                         const matchData = await contract.methods.matches(matchId).call();
+                        console.log("Polling match data for matchId", matchId, ":", matchData);
                         if (matchData.matchFinished && matchData.rewardsDistributed) {
                             clearInterval(checkInterval);
                             resolve();
@@ -446,6 +476,7 @@ async function waitForMatchCompletion(matchId, contract) {
             const checkInterval = setInterval(async () => {
                 try {
                     const matchData = await contract.methods.matches(matchId).call();
+                    console.log("Polling match data for matchId", matchId, ":", matchData);
                     if (matchData.matchFinished && matchData.rewardsDistributed) {
                         clearInterval(checkInterval);
                         resolve();
