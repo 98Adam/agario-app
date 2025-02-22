@@ -57,12 +57,14 @@ async function startGame(type, betValue) {
         }
     }
 
-    // Place the bet on the smart contract
+    // Place the bet on the smart contract and get matchId
     try {
         const account = (await web3.eth.getAccounts())[0];
         const txHash = await placeBet(contract, betValue, account);
         console.log("Bet placed successfully. Transaction hash:", txHash);
-        global.currentMatchId = 1; // Placeholder; update with actual match ID logic
+
+        // Fetch the current matchId from the smart contract
+        global.currentMatchId = await getCurrentMatchId(contract, account);
         global.matchType = "MultiPlayer"; // Placeholder; update with actual match type logic
         global.betValue = betValue; // Store bet value globally
     } catch (error) {
@@ -88,6 +90,18 @@ async function startGame(type, betValue) {
     window.chat.registerFunctions();
     window.canvas.socket = socket;
     global.socket = socket;
+}
+
+// New function to fetch current matchId from the smart contract
+async function getCurrentMatchId(contract, account) {
+    try {
+        // Fetch the latest matchId from the smart contract
+        const latestMatchId = await contract.methods.currentMatchId().call({ from: account });
+        return parseInt(latestMatchId); // Convert to integer if needed
+    } catch (error) {
+        console.error("Error fetching matchId:", error);
+        throw new Error("Failed to fetch match ID. Please try again.");
+    }
 }
 
 // Check if nickname is valid alphanumerical
@@ -349,23 +363,28 @@ function setupSocket(socket) {
 
         try {
             const account = (await web3.eth.getAccounts())[0];
-            const txHash = await claimReward(contract, matchId, account); // Use matchId, not position
+            const txHash = await claimReward(contract, matchId, account); // Claim reward
             console.log("Reward claimed successfully. Transaction hash:", txHash);
+
+            // Wait for the match to be marked as finished and rewards distributed using event listener
+            await waitForMatchCompletion(matchId, contract);
+
+            // Show the final popup only after the match is completed
+            const iframe = document.getElementById("finalPopup");
+            iframe.style.display = "block";
+
+            iframe.contentWindow.postMessage({
+                position: position,
+                betAmount: betAmount,
+                matchId: matchId,
+                matchType: matchType,
+                playerId: account // Use wallet address as playerId
+            }, "*");
         } catch (error) {
-            console.error("Failed to claim reward:", error);
-            alert("Failed to claim your reward. Please try again.");
+            console.error("Failed to claim reward or show results:", error);
+            alert("Failed to claim your reward or load match results. Please try again.");
+            return;
         }
-
-        const iframe = document.getElementById("finalPopup");
-        iframe.style.display = "block";
-
-        iframe.contentWindow.postMessage({
-            position: position,
-            betAmount: betAmount,
-            matchId: matchId,
-            matchType: matchType,
-            playerId: account // Use wallet address as playerId
-        }, "*");
 
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
@@ -393,8 +412,61 @@ function setupSocket(socket) {
     });
 }
 
-// Helper function
+// Function to wait for match completion using event listener (with fallback polling)
+async function waitForMatchCompletion(matchId, contract) {
+    return new Promise((resolve) => {
+        // Attempt to listen for the MatchFinished event
+        try {
+            contract.events.MatchFinished({
+                filter: { matchId: matchId },
+                fromBlock: 'latest'
+            })
+            .on('data', (event) => {
+                console.log("Match finished event received:", event.returnValues);
+                resolve();
+            })
+            .on('error', (error) => {
+                console.error("Error listening for MatchFinished event (falling back to polling):", error);
+                // Fallback to polling if event listening fails
+                const checkInterval = setInterval(async () => {
+                    try {
+                        const matchData = await contract.methods.matches(matchId).call();
+                        if (matchData.matchFinished && matchData.rewardsDistributed) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    } catch (error) {
+                        console.error("Error checking match completion:", error);
+                    }
+                }, 5000); // Poll every 5 seconds as fallback
+            });
+        } catch (error) {
+            console.error("Failed to set up event listener, using polling:", error);
+            // Immediate fallback to polling if event setup fails
+            const checkInterval = setInterval(async () => {
+                try {
+                    const matchData = await contract.methods.matches(matchId).call();
+                    if (matchData.matchFinished && matchData.rewardsDistributed) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                } catch (error) {
+                    console.error("Error checking match completion:", error);
+                }
+            }, 5000);
+        }
+    });
+}
+
+// Helper functions
 const isUnnamedCell = (name) => name.length < 1;
+
+function getPosition(entity, player, screen) {
+    return {
+        x: entity.x - player.x + screen.width / 2,
+        y: entity.y - player.y + screen.height / 2
+    };
+}
 
 function animloop() {
     global.animLoopHandle = window.requestAnimFrame(animloop);
@@ -425,7 +497,7 @@ function gameLoop() {
             right: global.screen.width / 2 + global.game.width - player.x,
             top: global.screen.height / 2 - player.y,
             bottom: global.screen.height / 2 + global.game.height - player.y
-        }
+        };
         if (global.borderDraw) {
             render.drawBorder(borders, graph);
         }
