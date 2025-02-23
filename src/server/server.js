@@ -13,7 +13,7 @@ const chatRepository = require('./repositories/chat-repository');
 const config = require('../../config');
 const util = require('./lib/util');
 const mapUtils = require('./map/map');
-const { getPosition } = require("./lib/entityUtils");
+const {getPosition} = require("./lib/entityUtils");
 
 let map = new mapUtils.Map(config);
 
@@ -26,7 +26,6 @@ let leaderboardChanged = false;
 
 const Vector = SAT.Vector;
 
-// Serve static files from the client directory (no CSP or helmet added)
 app.use(express.static(__dirname + '/../client'));
 
 io.on('connection', function (socket) {
@@ -49,6 +48,7 @@ function generateSpawnpoint() {
     return getPosition(config.newPlayerInitialPosition === 'farthest', radius, map.players.data)
 }
 
+
 const addPlayer = (socket) => {
     var currentPlayer = new mapUtils.playerUtils.Player(socket.id);
 
@@ -70,6 +70,7 @@ const addPlayer = (socket) => {
             io.emit('playerJoin', { name: currentPlayer.name });
             console.log('Total players: ' + map.players.data.length);
         }
+
     });
 
     socket.on('pingcheck', () => {
@@ -145,14 +146,16 @@ const addPlayer = (socket) => {
                     for (var f = 1; f < data.length; f++) {
                         if (f === data.length) {
                             reason = reason + data[f];
-                        } else {
+                        }
+                        else {
                             reason = reason + data[f] + ' ';
                         }
                     }
                 }
                 if (reason !== '') {
                     console.log('[ADMIN] User ' + player.name + ' kicked successfully by ' + currentPlayer.name + ' for reason ' + reason);
-                } else {
+                }
+                else {
                     console.log('[ADMIN] User ' + player.name + ' kicked successfully by ' + currentPlayer.name);
                 }
                 socket.emit('serverMSG', 'User ' + player.name + ' was kicked by ' + currentPlayer.name);
@@ -167,7 +170,7 @@ const addPlayer = (socket) => {
         }
     });
 
-    // Heartbeat function, update every time.
+    // Heartbeat function, update everytime.
     socket.on('0', (target) => {
         currentPlayer.lastHeartbeat = new Date().getTime();
         if (target.x !== currentPlayer.x || target.y !== currentPlayer.y) {
@@ -189,7 +192,7 @@ const addPlayer = (socket) => {
     socket.on('2', () => {
         currentPlayer.userSplit(config.limitSplit, config.defaultPlayerMass);
     });
-};
+}
 
 const addSpectator = (socket) => {
     socket.on('gotit', function () {
@@ -202,7 +205,7 @@ const addSpectator = (socket) => {
         width: config.gameWidth,
         height: config.gameHeight
     });
-};
+}
 
 const tickPlayer = (currentPlayer) => {
     if (currentPlayer.lastHeartbeat < new Date().getTime() - config.maxHeartbeatInterval) {
@@ -229,7 +232,7 @@ const tickPlayer = (currentPlayer) => {
 
     const canEatVirus = (cell, cellCircle, virus) => {
         return virus.mass < cell.mass && isEntityInsideCircle(virus, cellCircle)
-    };
+    }
 
     const cellsToSplit = [];
     for (let cellIndex = 0; cellIndex < currentPlayer.cells.length; cellIndex++) {
@@ -243,7 +246,7 @@ const tickPlayer = (currentPlayer) => {
 
         if (eatenVirusIndexes.length > 0) {
             cellsToSplit.push(cellIndex);
-            map.viruses.delete(eatenVirusIndexes);
+            map.viruses.delete(eatenVirusIndexes)
         }
 
         let massGained = eatenMassIndexes.reduce((acc, index) => acc + map.massFood.data[index].mass, 0);
@@ -273,6 +276,7 @@ const tickGame = () => {
             map.players.removePlayerByIndex(gotEaten.playerIndex);
         }
     });
+
 };
 
 const calculateLeaderboard = () => {
@@ -290,7 +294,7 @@ const calculateLeaderboard = () => {
             }
         }
     }
-};
+}
 
 const gameloop = () => {
     if (map.players.data.length > 0) {
@@ -318,8 +322,7 @@ const sendLeaderboard = (socket) => {
         players: map.players.data.length,
         leaderboard
     });
-};
-
+}
 const updateSpectator = (socketID) => {
     let playerData = {
         x: config.gameWidth / 2,
@@ -334,7 +337,7 @@ const updateSpectator = (socketID) => {
     if (leaderboardChanged) {
         sendLeaderboard(sockets[socketID]);
     }
-};
+}
 
 setInterval(tickGame, 1000 / 60);
 setInterval(gameloop, 1000);
