@@ -31,6 +31,7 @@ div {
     height: 100px;
     padding: 5px;
     border: none;
+    z-index: 10; /* Ensure buttons are above other elements */
 }
 
 #feed {
@@ -41,6 +42,11 @@ div {
     height: 100px;
     padding: 5px;
     border: none;
+    z-index: 10; /* Ensure buttons are above other elements */
+}
+
+#mobile {
+    display: block; /* Ensure #mobile is always visible */
 }
 
 #status {
@@ -244,7 +250,7 @@ div {
 #startMenu .input-error {
     color: red;
     opacity: 0;
-    font-size : 12px;
+    font-size: 12px;
 }
 
 #startMenuWrapper {
@@ -258,27 +264,21 @@ div {
     opacity: 0;
 }
 
-@media only screen  and (min-width : 1224px) {
-#mobile {
-display: none;
-	}
+@media only screen and (max-width: 1224px) {
+    #chatbox {
+        display: none;
+    }
 }
 
-@media only screen  and (max-width : 1224px) {
-#chatbox {
-display: none;
-        }
-}
-
-input [type="image"]:focus{
- border:none;
- outline: 1px solid transparent;
- border-style: none;
+input[type="image"]:focus {
+    border: none;
+    outline: 1px solid transparent;
+    border-style: none;
 }
 
 *:focus {
- outline: 1px solid transparent;
- border-style: none;
+    outline: 1px solid transparent;
+    border-style: none;
 }
 
 /* Pop-up styles */
