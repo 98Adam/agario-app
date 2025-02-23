@@ -1,3 +1,4 @@
+// Import required modules
 var io = require('socket.io-client');
 var render = require('./render');
 var ChatClient = require('./chat-client');
@@ -13,14 +14,34 @@ var debug = function (args) {
     }
 };
 
+// Check if user is on mobile device
 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
 
-function startGame(type) {
+// Listen for messages from the game
+window.addEventListener("message", function(event) {
+    const data = event.data;
+
+    if (data.betConfirmed) {
+        const startPopup = document.getElementById("startPopup");
+
+        // Hide the iframe
+        startPopup.style.display = "none";
+
+        // Start the game with the selected bet value
+        console.log("Selected Amount:", data.betValue);
+        startGame('player', data.betValue);  // Pass bet value to startGame
+    }
+});
+
+function startGame(type, betValue) {
     global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25);
     global.playerType = type;
 
+    console.log("Starting Game with amount:", betValue); // Use betValue as needed
+
+    // Remaining existing code in startGame...
     global.screen.width = window.innerWidth;
     global.screen.height = window.innerHeight;
 
@@ -39,34 +60,91 @@ function startGame(type) {
     global.socket = socket;
 }
 
-// Checks if the nick chosen contains valid alphanumeric characters (and underscores).
+// Check if nickname is valid alphanumerical
 function validNick() {
     var regex = /^\w*$/;
-    debug('Regex Test', regex.exec(playerNameInput.value));
     return regex.exec(playerNameInput.value) !== null;
 }
 
+// Function to check MetaMask Connection
+async function checkMetaMaskConnection() {
+    const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com";
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+    const isMetaMaskBrowser = window.ethereum && window.ethereum.isMetaMask;
+
+    if (isMobileDevice && !isMetaMaskBrowser) {
+        // Show alert only if not already inside MetaMask's browser
+        alert(`Please copy this link and open it inside MetaMask's browser for connection:\n\n${dAppURL}`);
+        return false;
+    }
+
+    if (isMetaMaskBrowser) {
+        try {
+            const accounts = await ethereum.request({ method: 'eth_accounts' });
+            if (accounts && accounts.length > 0) {
+                // User is connected
+                return true;
+            } else {
+                // User is not connected; prompt to connect
+                await ethereum.request({ method: 'eth_requestAccounts' });
+                return true;
+            }
+        } catch (error) {
+            console.error("Error checking MetaMask connection:", error);
+            return false;
+        }
+    }
+
+    // For desktop users without MetaMask
+    if (!isMetaMaskBrowser && !isMobileDevice) {
+        const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
+        if (confirmation) {
+            window.open("https://metamask.io/download/", "_blank");
+        }
+        return false;
+    }
+
+    return false;
+}
+
+// Function to request MetaMask
+async function connectMetaMask() {
+    try {
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        return accounts.length > 0;
+    } catch (error) {
+        console.error("MetaMask connection failed:", error);
+        return false;
+    }
+}
+
 window.onload = function () {
+    var btn = document.getElementById('startButton');
+    var startPopup = document.getElementById('startPopup'); // Reference to StartPopup iframe
 
-    var btn = document.getElementById('startButton'),
-        btnS = document.getElementById('spectateButton'),
-        nickErrorText = document.querySelector('#startMenu .input-error');
-
-    btnS.onclick = function () {
-        startGame('spectator');
-    };
-
-    btn.onclick = function () {
-
-        // Checks if the nick is valid.
+    btn.onclick = async function () {
         if (validNick()) {
-            nickErrorText.style.opacity = 0;
-            startGame('player');
+            // Hide error message
+            document.querySelector('#startMenu .input-error').style.opacity = 0;
+
+            // Check MetaMask's Connection Status
+            let isConnected = await checkMetaMaskConnection();
+
+            if (!isConnected) {
+                // If not connected, request MetaMask
+                isConnected = await connectMetaMask();
+            }
+
+            if (isConnected) {
+                // Show startPopup for bet selection
+                startPopup.style.display = "block";
+            }
         } else {
-            nickErrorText.style.opacity = 1;
+            document.querySelector('#startMenu .input-error').style.opacity = 1;
         }
     };
 
+    // Settings Menu toggle
     var settingsMenu = document.getElementById('settingsButton');
     var settings = document.getElementById('settings');
 
@@ -78,22 +156,22 @@ window.onload = function () {
         }
     };
 
+    // Handle pressing "Enter" key to start the game
     playerNameInput.addEventListener('keypress', function (e) {
         var key = e.which || e.keyCode;
 
         if (key === global.KEY_ENTER) {
             if (validNick()) {
-                nickErrorText.style.opacity = 0;
+                document.querySelector('#startMenu .input-error').style.opacity = 0;
                 startGame('player');
             } else {
-                nickErrorText.style.opacity = 1;
+                document.querySelector('#startMenu .input-error').style.opacity = 1;
             }
         }
     });
 };
 
-// TODO: Break out into GameControls.
-
+// Player configuration
 var playerConfig = {
     border: 6,
     textColor: '#FFFFFF',
@@ -102,6 +180,7 @@ var playerConfig = {
     defaultSize: 30
 };
 
+// Initialize player object
 var player = {
     id: -1,
     x: global.screen.width / 2,
@@ -123,6 +202,7 @@ global.target = target;
 window.canvas = new Canvas();
 window.chat = new ChatClient();
 
+// Event listeners for UI elements
 var visibleBorderSetting = document.getElementById('visBord');
 visibleBorderSetting.onchange = settings.toggleBorder;
 
@@ -138,6 +218,7 @@ roundFoodSetting.onchange = settings.toggleRoundFood;
 var c = window.canvas.cv;
 var graph = c.getContext('2d');
 
+// Event handlers for split and feed actions
 $("#feed").click(function () {
     socket.emit('1');
     window.canvas.reenviar = false;
@@ -150,12 +231,12 @@ $("#split").click(function () {
 
 function handleDisconnect() {
     socket.close();
-    if (!global.kicked) { // We have a more specific error message 
+    if (!global.kicked) {
         render.drawErrorMessage('Disconnected!', graph, global.screen);
     }
 }
 
-// socket stuff.
+// Socket event handling
 function setupSocket(socket) {
     // Handle ping.
     socket.on('pongcheck', function () {
@@ -164,11 +245,11 @@ function setupSocket(socket) {
         window.chat.addSystemLine('Ping: ' + latency + 'ms');
     });
 
-    // Handle error.
+    // Handle connection and errors.
     socket.on('connect_error', handleDisconnect);
     socket.on('disconnect', handleDisconnect);
 
-    // Handle connection.
+    // On welcome, initialize player
     socket.on('welcome', function (playerSettings, gameSizes) {
         player = playerSettings;
         player.name = global.playerName;
@@ -192,10 +273,7 @@ function setupSocket(socket) {
 
     socket.on('playerDied', (data) => {
         const player = isUnnamedCell(data.playerEatenName) ? 'An unnamed cell' : data.playerEatenName;
-        //const killer = isUnnamedCell(data.playerWhoAtePlayerName) ? 'An unnamed cell' : data.playerWhoAtePlayerName;
-
-        //window.chat.addSystemLine('{GAME} - <b>' + (player) + '</b> was eaten by <b>' + (killer) + '</b>');
-        window.chat.addSystemLine('{GAME} - <b>' + (player) + '</b> was eaten');
+        window.chat.addSystemLine('{GAME} - <b>' + player + '</b> was eaten');
     });
 
     socket.on('playerDisconnect', (data) => {
@@ -206,6 +284,7 @@ function setupSocket(socket) {
         window.chat.addSystemLine('{GAME} - <b>' + (isUnnamedCell(data.name) ? 'An unnamed cell' : data.name) + '</b> joined.');
     });
 
+    // Handle Leaderboard Updates
     socket.on('leaderboard', (data) => {
         leaderboard = data.leaderboard;
         var status = '<span class="title">Leaderboard</span>';
@@ -223,7 +302,6 @@ function setupSocket(socket) {
                     status += (i + 1) + '. An unnamed cell';
             }
         }
-        //status += '<br />Players: ' + data.players;
         document.getElementById('status').innerHTML = status;
     });
 
@@ -231,12 +309,12 @@ function setupSocket(socket) {
         window.chat.addSystemLine(data);
     });
 
-    // Chat.
+    // Chat
     socket.on('serverSendPlayerChat', function (data) {
         window.chat.addChatLine(data.sender, data.message, false);
     });
 
-    // Handle movement.
+    // Handle Movement Updates
     socket.on('serverTellPlayerMove', function (playerData, userData, foodsList, massList, virusList) {
         if (global.playerType == 'player') {
             player.x = playerData.x;
@@ -251,10 +329,20 @@ function setupSocket(socket) {
         fireFood = massList;
     });
 
-    // Death.
+    // Player Death Handling
     socket.on('RIP', function () {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
+
+        // Retrieve Game Data for finalPopup
+        const position = global.finalPosition || 0; // Replace with position from leaderboard
+        const betAmount = global.betValue || 0; // Player's selected bet amount at game start
+        const wonAmount = global.wonAmount || 0; // Amount won, based on game results
+        const gasFee = global.gasFee || 0; // Gas fee, if applicable
+
+        // Show FinalPopup with Match Results
+        showFinalPopup(position, betAmount, wonAmount, gasFee);
+
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
             document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
@@ -265,13 +353,13 @@ function setupSocket(socket) {
         }, 2500);
     });
 
+
     socket.on('kick', function (reason) {
         global.gameStart = false;
         global.kicked = true;
         if (reason !== '') {
             render.drawErrorMessage('You were kicked for: ' + reason, graph, global.screen);
-        }
-        else {
+        } else {
             render.drawErrorMessage('You were kicked!', graph, global.screen);
         }
         socket.close();
@@ -291,7 +379,6 @@ window.requestAnimFrame = (function () {
     return window.requestAnimationFrame ||
         window.webkitRequestAnimationFrame ||
         window.mozRequestAnimationFrame ||
-        window.msRequestAnimationFrame ||
         function (callback) {
             window.setTimeout(callback, 1000 / 60);
         };
@@ -326,8 +413,7 @@ function gameLoop() {
             render.drawVirus(position, virus, graph);
         });
 
-
-        let borders = { // Position of the borders on the screen
+        let borders = {
             left: global.screen.width / 2 - player.x,
             right: global.screen.width / 2 + global.game.width - player.x,
             top: global.screen.height / 2 - player.y,
@@ -362,6 +448,28 @@ function gameLoop() {
     }
 }
 
+// Function to show FinalPopup with all the Match Results
+function showFinalPopup(position, betAmount, wonAmount, gasFee = null) {
+    const iframe = document.getElementById("finalPopup"); // Reference to FinalPopup iframe
+    iframe.style.display = "block";
+
+    // Send Match Results to the iframe
+    iframe.contentWindow.postMessage({
+        position: position,
+        betAmount: betAmount,
+        wonAmount: wonAmount,
+        gasFee: gasFee
+    }, "*");
+}
+
+// Hide FinalPopup when "OK" button is pressed
+window.addEventListener("message", function(event) {
+    if (event.data.action === "hideIframe") {
+        document.getElementById("finalPopup").style.display = "none";
+    }
+}, false);
+
+// Handle Screen Resize
 window.addEventListener('resize', resize);
 
 function resize() {
@@ -369,11 +477,6 @@ function resize() {
 
     player.screenWidth = c.width = global.screen.width = global.playerType == 'player' ? window.innerWidth : global.game.width;
     player.screenHeight = c.height = global.screen.height = global.playerType == 'player' ? window.innerHeight : global.game.height;
-
-    if (global.playerType == 'spectator') {
-        player.x = global.game.width / 2;
-        player.y = global.game.height / 2;
-    }
 
     socket.emit('windowResized', { screenWidth: global.screen.width, screenHeight: global.screen.height });
 }
