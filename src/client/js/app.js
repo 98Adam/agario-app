@@ -1,18 +1,14 @@
 // Import required modules
-import { initializeContract, placeBet, claimReward } from './smartContract.js';
-import io from 'socket.io-client';
-import render from './render';
-import ChatClient from './chat-client';
-import Canvas from './canvas';
-import global from './global';
-import axios from 'axios'; // Added for HTTP requests
+var io = require('socket.io-client');
+var render = require('./render');
+var ChatClient = require('./chat-client');
+var Canvas = require('./canvas');
+var global = require('./global');
 
-const playerNameInput = document.getElementById('playerNameInput');
-let socket;
-let web3; // Web3 instance
-let contract; // Smart contract instance
+var playerNameInput = document.getElementById('playerNameInput');
+var socket;
 
-const debug = function (args) {
+var debug = function (args) {
     if (console && console.log) {
         console.log(args);
     }
@@ -24,7 +20,7 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
 }
 
 // Listen for messages from the game
-window.addEventListener("message", async function (event) {
+window.addEventListener("message", function(event) {
     const data = event.data;
 
     if (data.betConfirmed) {
@@ -35,49 +31,15 @@ window.addEventListener("message", async function (event) {
 
         // Start the game with the selected bet value
         console.log("Selected Amount:", data.betValue);
-        await startGame('player', data.betValue); // Pass bet value to startGame
+        startGame('player', data.betValue);  // Pass bet value to startGame
     }
 });
 
-async function startGame(type, betValue) {
+function startGame(type, betValue) {
     global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25);
     global.playerType = type;
 
-    console.log("Starting Game with amount:", betValue);
-
-    // Initialize Web3 and contract (skip if not deployed for now)
-    let isContractDeployed = false;
-    if (window.ethereum) {
-        web3 = new Web3(window.ethereum);
-        try {
-            contract = await initializeContract(web3);
-            console.log("Smart contract initialized:", contract);
-            isContractDeployed = true;
-        } catch (error) {
-            console.warn("Smart contract not deployed or initialization failed (development mode):", error);
-            contract = null; // Set contract to null if not deployed
-            isContractDeployed = false;
-        }
-    }
-
-    // Place the bet (skip if contract not deployed, use mock data for testing)
-    try {
-        const account = (await web3?.eth.getAccounts())?.[0] || '0xMockAccount'; // Mock account for testing
-        if (isContractDeployed) {
-            const txHash = await placeBet(contract, betValue, account);
-            console.log("Bet placed successfully. Transaction hash:", txHash);
-            global.currentMatchId = await getCurrentMatchId(contract, account);
-        } else {
-            console.log("Smart contract not deployed. Using mock matchId for testing.");
-            global.currentMatchId = 1; // Mock matchId for development
-        }
-        global.matchType = "MultiPlayer"; // Placeholder; update with actual match type logic
-        global.betValue = betValue; // Store bet value globally
-    } catch (error) {
-        console.error("Failed to place bet:", error);
-        alert("Failed to place your bet. Please try again (smart contract not deployed in development mode).");
-        return;
-    }
+    console.log("Starting Game with amount:", betValue); // Use betValue as needed
 
     // Remaining existing code in startGame...
     global.screen.width = window.innerWidth;
@@ -98,84 +60,9 @@ async function startGame(type, betValue) {
     global.socket = socket;
 }
 
-// New function to fetch current matchId from the smart contract (optional for development)
-async function getCurrentMatchId(contract, account) {
-    try {
-        if (!contract) {
-            console.warn("Contract not initialized. Returning mock matchId.");
-            return 1; // Mock matchId for development
-        }
-        const latestMatchId = await contract.methods.currentMatchId().call({ from: account });
-        return parseInt(latestMatchId); // Convert to integer if needed
-    } catch (error) {
-        console.error("Error fetching matchId:", error);
-        throw new Error("Failed to fetch match ID. Please try again.");
-    }
-}
-
-// New function to save match data to backend
-async function saveMatchToBackend(matchId, betValue, matchType, account) {
-    try {
-        if (!contract) {
-            console.warn("Smart contract not deployed. Saving mock match data.");
-            const mockPlayers = [account]; // Mock single player for 1vs1
-            const mockRankings = [{ player: account, position: 1 }];
-            const mockTotalPool = betValue; // Mock totalPool as betValue (decimal USDC)
-            const response = await axios.post('/api/v1/save-match', {
-                match_id: matchId.toString(),
-                bet_amount: betValue, // Decimal USDC
-                totalPool: mockTotalPool, // Decimal USDC
-                matchType: matchType,
-                players: mockPlayers, // Wallet addresses (mapped server-side to User ObjectIds)
-                rankings: mockRankings, // [{ player: walletAddress, position: Number }]
-                status: 'completed'
-            });
-            console.log("Mock match data saved to backend:", response.data);
-            return;
-        }
-
-        // Fetch match data from contract
-        const matchData = await contract.methods.getMatchSummary(matchId).call({ from: account });
-        const totalPoolMicro = matchData.totalPool; // Micro-USDC from contract
-        const totalPool = Number(totalPoolMicro) / 1e6; // Convert to decimal USDC
-        const players = matchData.players; // Array of wallet addresses
-
-        // Fetch winners from contract (adjust for 1vs1 vs MultiPlayer)
-        let rankings;
-        if (matchType === 'OneVsOne' || matchType === 'NotOurs1v1') {
-            const winner = await contract.methods.matchWinner(matchId).call({ from: account });
-            rankings = [{ player: winner.player, position: 1 }];
-        } else {
-            rankings = await Promise.all(
-                [0, 1, 2].map(async (i) => {
-                    const winner = await contract.methods.matchWinners(matchId, i).call({ from: account });
-                    return { player: winner.player, position: i + 1 };
-                })
-            );
-        }
-
-        // Send match data to backend
-        const response = await axios.post('/api/v1/save-match', {
-            match_id: matchId.toString(),
-            bet_amount: betValue, // Decimal USDC
-            totalPool: totalPool, // Decimal USDC
-            matchType: matchType,
-            players: players, // Wallet addresses (mapped server-side to User ObjectIds)
-            rankings: rankings, // [{ player: walletAddress, position: Number }]
-            status: 'completed'
-        });
-
-        if (!response.data.success) throw new Error('Failed to save match');
-        console.log("Match data saved to backend:", { matchId, totalPool, matchType });
-    } catch (error) {
-        console.error("Error saving match to backend:", error);
-        throw error;
-    }
-}
-
 // Check if nickname is valid alphanumerical
 function validNick() {
-    const regex = /^\w*$/;
+    var regex = /^\w*$/;
     return regex.exec(playerNameInput.value) !== null;
 }
 
@@ -186,6 +73,7 @@ async function checkMetaMaskConnection() {
     const isMetaMaskBrowser = window.ethereum && window.ethereum.isMetaMask;
 
     if (isMobileDevice && !isMetaMaskBrowser) {
+        // Show alert only if not already inside MetaMask's browser
         alert(`Please copy this link and open it inside MetaMask's browser for connection:\n\n${dAppURL}`);
         return false;
     }
@@ -194,8 +82,10 @@ async function checkMetaMaskConnection() {
         try {
             const accounts = await ethereum.request({ method: 'eth_accounts' });
             if (accounts && accounts.length > 0) {
+                // User is connected
                 return true;
             } else {
+                // User is not connected; prompt to connect
                 await ethereum.request({ method: 'eth_requestAccounts' });
                 return true;
             }
@@ -205,6 +95,7 @@ async function checkMetaMaskConnection() {
         }
     }
 
+    // For desktop users without MetaMask
     if (!isMetaMaskBrowser && !isMobileDevice) {
         const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
         if (confirmation) {
@@ -228,20 +119,24 @@ async function connectMetaMask() {
 }
 
 window.onload = function () {
-    const btn = document.getElementById('startButton');
-    const startPopup = document.getElementById('startPopup');
+    var btn = document.getElementById('startButton');
+    var startPopup = document.getElementById('startPopup'); // Reference to StartPopup iframe
 
     btn.onclick = async function () {
         if (validNick()) {
+            // Hide error message
             document.querySelector('#startMenu .input-error').style.opacity = 0;
 
+            // Check MetaMask's Connection Status
             let isConnected = await checkMetaMaskConnection();
 
             if (!isConnected) {
+                // If not connected, request MetaMask
                 isConnected = await connectMetaMask();
             }
 
             if (isConnected) {
+                // Show startPopup for bet selection
                 startPopup.style.display = "block";
             }
         } else {
@@ -249,8 +144,9 @@ window.onload = function () {
         }
     };
 
-    const settingsMenu = document.getElementById('settingsButton');
-    const settings = document.getElementById('settings');
+    // Settings Menu toggle
+    var settingsMenu = document.getElementById('settingsButton');
+    var settings = document.getElementById('settings');
 
     settingsMenu.onclick = function () {
         if (settings.style.maxHeight == '300px') {
@@ -260,8 +156,9 @@ window.onload = function () {
         }
     };
 
+    // Handle pressing "Enter" key to start the game
     playerNameInput.addEventListener('keypress', function (e) {
-        const key = e.which || e.keyCode;
+        var key = e.which || e.keyCode;
 
         if (key === global.KEY_ENTER) {
             if (validNick()) {
@@ -274,7 +171,8 @@ window.onload = function () {
     });
 };
 
-const playerConfig = {
+// Player configuration
+var playerConfig = {
     border: 6,
     textColor: '#FFFFFF',
     textBorder: '#000000',
@@ -282,7 +180,8 @@ const playerConfig = {
     defaultSize: 30
 };
 
-const player = {
+// Initialize player object
+var player = {
     id: -1,
     x: global.screen.width / 2,
     y: global.screen.height / 2,
@@ -292,32 +191,34 @@ const player = {
 };
 global.player = player;
 
-let foods = [];
-let viruses = [];
-let fireFood = [];
-let users = [];
-let leaderboard = [];
-const target = { x: player.x, y: player.y };
+var foods = [];
+var viruses = [];
+var fireFood = [];
+var users = [];
+var leaderboard = [];
+var target = { x: player.x, y: player.y };
 global.target = target;
 
 window.canvas = new Canvas();
 window.chat = new ChatClient();
 
-const visibleBorderSetting = document.getElementById('visBord');
+// Event listeners for UI elements
+var visibleBorderSetting = document.getElementById('visBord');
 visibleBorderSetting.onchange = settings.toggleBorder;
 
-const showMassSetting = document.getElementById('showMass');
+var showMassSetting = document.getElementById('showMass');
 showMassSetting.onchange = settings.toggleMass;
 
-const continuitySetting = document.getElementById('continuity');
+var continuitySetting = document.getElementById('continuity');
 continuitySetting.onchange = settings.toggleContinuity;
 
-const roundFoodSetting = document.getElementById('roundFood');
+var roundFoodSetting = document.getElementById('roundFood');
 roundFoodSetting.onchange = settings.toggleRoundFood;
 
-const c = window.canvas.cv;
-const graph = c.getContext('2d');
+var c = window.canvas.cv;
+var graph = c.getContext('2d');
 
+// Event handlers for split and feed actions
 $("#feed").click(function () {
     socket.emit('1');
     window.canvas.reenviar = false;
@@ -335,16 +236,20 @@ function handleDisconnect() {
     }
 }
 
+// Socket event handling
 function setupSocket(socket) {
+    // Handle ping.
     socket.on('pongcheck', function () {
-        const latency = Date.now() - global.startPingTime;
+        var latency = Date.now() - global.startPingTime;
         debug('Latency: ' + latency + 'ms');
         window.chat.addSystemLine('Ping: ' + latency + 'ms');
     });
 
+    // Handle connection and errors.
     socket.on('connect_error', handleDisconnect);
     socket.on('disconnect', handleDisconnect);
 
+    // On welcome, initialize player
     socket.on('welcome', function (playerSettings, gameSizes) {
         player = playerSettings;
         player.name = global.playerName;
@@ -367,8 +272,8 @@ function setupSocket(socket) {
     });
 
     socket.on('playerDied', (data) => {
-        const playerName = isUnnamedCell(data.playerEatenName) ? 'An unnamed cell' : data.playerEatenName;
-        window.chat.addSystemLine('{GAME} - <b>' + playerName + '</b> was eaten');
+        const player = isUnnamedCell(data.playerEatenName) ? 'An unnamed cell' : data.playerEatenName;
+        window.chat.addSystemLine('{GAME} - <b>' + player + '</b> was eaten');
     });
 
     socket.on('playerDisconnect', (data) => {
@@ -379,10 +284,11 @@ function setupSocket(socket) {
         window.chat.addSystemLine('{GAME} - <b>' + (isUnnamedCell(data.name) ? 'An unnamed cell' : data.name) + '</b> joined.');
     });
 
+    // Handle Leaderboard Updates
     socket.on('leaderboard', (data) => {
         leaderboard = data.leaderboard;
-        let status = '<span class="title">Leaderboard</span>';
-        for (let i = 0; i < leaderboard.length; i++) {
+        var status = '<span class="title">Leaderboard</span>';
+        for (var i = 0; i < leaderboard.length; i++) {
             status += '<br />';
             if (leaderboard[i].id == player.id) {
                 if (leaderboard[i].name.length !== 0)
@@ -403,10 +309,12 @@ function setupSocket(socket) {
         window.chat.addSystemLine(data);
     });
 
+    // Chat
     socket.on('serverSendPlayerChat', function (data) {
         window.chat.addChatLine(data.sender, data.message, false);
     });
 
+    // Handle Movement Updates
     socket.on('serverTellPlayerMove', function (playerData, userData, foodsList, massList, virusList) {
         if (global.playerType == 'player') {
             player.x = playerData.x;
@@ -421,56 +329,19 @@ function setupSocket(socket) {
         fireFood = massList;
     });
 
-    socket.on('RIP', async function () {
+    // Player Death Handling
+    socket.on('RIP', function () {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
 
-        const position = leaderboard.findIndex(entry => entry.id === player.id) + 1 || 0;
-        const betAmount = global.betValue || 0;
-        const matchId = global.currentMatchId; // Use directly, no default
-        const matchType = global.matchType || "MultiPlayer";
+        // Retrieve Game Data for finalPopup
+        const position = global.finalPosition || 0; // Replace with position from leaderboard
+        const betAmount = global.betValue || 0; // Player's selected bet amount at game start
+        const wonAmount = global.wonAmount || 0; // Amount won, based on game results
+        const gasFee = global.gasFee || 0; // Gas fee, if applicable
 
-        // Skip popup if smart contract isn’t deployed
-        if (!contract) {
-            console.warn("Smart contract not deployed. Skipping final popup for development.");
-            window.setTimeout(() => {
-                document.getElementById('gameAreaWrapper').style.opacity = 0;
-                document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
-                if (global.animLoopHandle) {
-                    window.cancelAnimationFrame(global.animLoopHandle);
-                    global.animLoopHandle = undefined;
-                }
-            }, 2500);
-            return;
-        }
-
-        try {
-            const account = (await web3.eth.getAccounts())[0];
-            const txHash = await claimReward(contract, matchId, account); // Claim reward
-            console.log("Reward claimed successfully. Transaction hash:", txHash);
-
-            // Wait for the match to be marked as finished and rewards distributed
-            await waitForMatchCompletion(matchId, contract);
-
-            // Save match data to backend before showing popup
-            await saveMatchToBackend(matchId, betAmount, matchType, account);
-
-            // Show the final popup only after match is saved
-            const iframe = document.getElementById("finalPopup");
-            iframe.style.display = "block";
-
-            iframe.contentWindow.postMessage({
-                position: position,
-                betAmount: betAmount,
-                matchId: matchId,
-                matchType: matchType,
-                playerId: account // Use wallet address as playerId
-            }, "*");
-        } catch (error) {
-            console.error("Failed to claim reward or save match:", error);
-            alert("Failed to process match results. Please try again.");
-            return;
-        }
+        // Show FinalPopup with Match Results
+        showFinalPopup(position, betAmount, wonAmount, gasFee);
 
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
@@ -482,6 +353,7 @@ function setupSocket(socket) {
         }, 2500);
     });
 
+
     socket.on('kick', function (reason) {
         global.gameStart = false;
         global.kicked = true;
@@ -492,73 +364,30 @@ function setupSocket(socket) {
         }
         socket.close();
     });
-
-    socket.on('matchStarted', function() {
-        document.getElementById('gameStatus').innerText = "Match started!";
-    });
 }
 
-// Function to wait for match completion using event listener (with fallback polling)
-async function waitForMatchCompletion(matchId, contract) {
-    return new Promise((resolve) => {
-        if (!contract) {
-            console.warn("Contract not initialized. Resolving immediately for development.");
-            resolve(); // Skip waiting if no contract (development mode)
-            return;
-        }
-
-        console.log("Waiting for MatchFinished event or polling for matchId:", matchId);
-        try {
-            contract.events.MatchFinished({
-                filter: { matchId: matchId },
-                fromBlock: 'latest'
-            })
-            .on('data', (event) => {
-                console.log("Match finished event received:", event.returnValues);
-                resolve();
-            })
-            .on('error', (error) => {
-                console.error("Error listening for MatchFinished event (falling back to polling):", error);
-                const checkInterval = setInterval(async () => {
-                    try {
-                        const matchData = await contract.methods.matches(matchId).call();
-                        console.log("Polling match data for matchId", matchId, ":", matchData);
-                        if (matchData.matchFinished && matchData.rewardsDistributed) {
-                            clearInterval(checkInterval);
-                            resolve();
-                        }
-                    } catch (error) {
-                        console.error("Error checking match completion:", error);
-                    }
-                }, 5000); // Poll every 5 seconds as fallback
-            });
-        } catch (error) {
-            console.error("Failed to set up event listener, using polling:", error);
-            const checkInterval = setInterval(async () => {
-                try {
-                    const matchData = await contract.methods.matches(matchId).call();
-                    console.log("Polling match data for matchId", matchId, ":", matchData);
-                    if (matchData.matchFinished && matchData.rewardsDistributed) {
-                        clearInterval(checkInterval);
-                        resolve();
-                    }
-                } catch (error) {
-                    console.error("Error checking match completion:", error);
-                }
-            }, 5000);
-        }
-    });
-}
-
-// Helper functions
 const isUnnamedCell = (name) => name.length < 1;
 
-function getPosition(entity, player, screen) {
+const getPosition = (entity, player, screen) => {
     return {
         x: entity.x - player.x + screen.width / 2,
         y: entity.y - player.y + screen.height / 2
-    };
+    }
 }
+
+window.requestAnimFrame = (function () {
+    return window.requestAnimationFrame ||
+        window.webkitRequestAnimationFrame ||
+        window.mozRequestAnimationFrame ||
+        function (callback) {
+            window.setTimeout(callback, 1000 / 60);
+        };
+})();
+
+window.cancelAnimFrame = (function (handle) {
+    return window.cancelAnimationFrame ||
+        window.mozCancelAnimationFrame;
+})();
 
 function animloop() {
     global.animLoopHandle = window.requestAnimFrame(animloop);
@@ -589,16 +418,16 @@ function gameLoop() {
             right: global.screen.width / 2 + global.game.width - player.x,
             top: global.screen.height / 2 - player.y,
             bottom: global.screen.height / 2 + global.game.height - player.y
-        };
+        }
         if (global.borderDraw) {
             render.drawBorder(borders, graph);
         }
 
-        let cellsToDraw = [];
-        for (let i = 0; i < users.length; i++) {
+        var cellsToDraw = [];
+        for (var i = 0; i < users.length; i++) {
             let color = 'hsl(' + users[i].hue + ', 100%, 50%)';
             let borderColor = 'hsl(' + users[i].hue + ', 100%, 45%)';
-            for (let j = 0; j < users[i].cells.length; j++) {
+            for (var j = 0; j < users[i].cells.length; j++) {
                 cellsToDraw.push({
                     color: color,
                     borderColor: borderColor,
@@ -620,21 +449,21 @@ function gameLoop() {
 }
 
 // Function to show FinalPopup with all the Match Results
-function showFinalPopup(position, betAmount, matchId, matchType, playerId) {
-    const iframe = document.getElementById("finalPopup");
+function showFinalPopup(position, betAmount, wonAmount, gasFee = null) {
+    const iframe = document.getElementById("finalPopup"); // Reference to FinalPopup iframe
     iframe.style.display = "block";
 
+    // Send Match Results to the iframe
     iframe.contentWindow.postMessage({
         position: position,
         betAmount: betAmount,
-        matchId: matchId,
-        matchType: matchType,
-        playerId: playerId
+        wonAmount: wonAmount,
+        gasFee: gasFee
     }, "*");
 }
 
 // Hide FinalPopup when "OK" button is pressed
-window.addEventListener("message", function (event) {
+window.addEventListener("message", function(event) {
     if (event.data.action === "hideIframe") {
         document.getElementById("finalPopup").style.display = "none";
     }
