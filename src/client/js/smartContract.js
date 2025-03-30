@@ -308,7 +308,7 @@ async function cancelBet() {
     try {
         if (!token) {
             throw Object.assign(new Error('No authentication token available. Please login first.'), {
-                userMessage: 'Please connect your wallet to cancel your bet.'
+                userMessage: 'Please connect your wallet to cancel your amount.'
             });
         }
         if (!contract) {
@@ -496,8 +496,8 @@ function setupWebSocket(callbacks) {
     return socket;
 }
 
-// Export all functions
-export default {
+// Export all functions as named exports
+export {
     getSmartContractDetails,
     initializeContract,
     login,
