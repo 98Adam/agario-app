@@ -42,6 +42,59 @@ const withTimeout = (promise, timeoutMs, errorMessage) => {
     ]);
 };
 
+// Check if MetaMask is in a pending state
+async function checkMetaMaskState() {
+    try {
+        // Attempt a simple request to see if MetaMask is responsive
+        await window.ethereum.request({ method: 'eth_chainId' });
+        return true;
+    } catch (error) {
+        console.error('MetaMask state check failed:', error);
+        if (error.code === -32002) {
+            throw Object.assign(new Error('MetaMask request already pending. Please check your MetaMask extension.'), {
+                userMessage: 'MetaMask is busy. Please complete or cancel any pending requests in the MetaMask extension.'
+            });
+        }
+        return false;
+    }
+}
+
+// Set up MetaMask event listeners to handle disconnects
+function setupMetaMaskListeners(provider) {
+    // Use 'disconnect' instead of 'close' as per MetaMask's deprecation warning
+    provider.on('disconnect', (error) => {
+        console.warn('MetaMask disconnected:', error);
+        // Reset provider and contract state
+        provider = null;
+        signer = null;
+        contract = null;
+        token = null;
+        localStorage.removeItem('token');
+        console.log('User disconnected, token cleared.');
+    });
+
+    // Handle account changes
+    provider.on('accountsChanged', (accounts) => {
+        console.log('MetaMask accounts changed:', accounts);
+        if (accounts.length === 0) {
+            // User disconnected their wallet
+            provider = null;
+            signer = null;
+            contract = null;
+            token = null;
+            localStorage.removeItem('token');
+            console.log('No accounts connected, token cleared.');
+        }
+    });
+
+    // Handle chain changes
+    provider.on('chainChanged', (chainId) => {
+        console.log('MetaMask chain changed:', chainId);
+        // Optionally reload the page or reinitialize the contract
+        window.location.reload();
+    });
+}
+
 // Fetch contract details from RCADYA with authentication
 async function getSmartContractDetails() {
     try {
@@ -86,30 +139,35 @@ async function getSmartContractDetails() {
 let provider, signer, contract, isMockContract = false;
 async function initializeContract() {
     try {
-        if (!window.ethereum) {
-            throw Object.assign(new Error('MetaMask is not installed.'), {
-                userMessage: 'Please install MetaMask to use this feature.'
+        const ethereumProvider = window.ethereum || window.coinbaseWalletExtension;
+        if (!ethereumProvider) {
+            throw Object.assign(new Error('No wallet provider installed.'), {
+                userMessage: 'Please install MetaMask or Coinbase Wallet to use this feature.'
             });
         }
+        console.log('Checking wallet state before initializing contract...');
+        await checkMetaMaskState();
+
         console.log('Initializing smart contract...');
         const { address: contractAddress, abi: contractAbi, isMock } = await getSmartContractDetails();
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        console.log('Requesting MetaMask signer...');
+        provider = new ethers.providers.Web3Provider(ethereumProvider);
+        setupMetaMaskListeners(provider); // Set up event listeners
+        console.log('Requesting wallet signer...');
         signer = provider.getSigner();
-        console.log('Requesting wallet address from MetaMask...');
+        console.log('Requesting wallet address...');
         const walletAddress = await withTimeout(
             signer.getAddress().catch(err => {
-                console.error('MetaMask getAddress error:', err);
+                console.error('Wallet getAddress error:', err);
                 if (err.code === 4001) {
                     throw new Error('User rejected wallet connection');
                 }
                 if (err.code === -32002) {
-                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                    throw new Error('Wallet request already pending. Please check your wallet extension.');
                 }
-                throw new Error('Failed to connect to MetaMask');
+                throw new Error('Failed to connect to wallet');
             }),
-            15000, // Restored 15-second timeout
-            'MetaMask wallet address request timed out'
+            15000,
+            'Wallet address request timed out'
         );
         console.log('Connected Wallet Address:', walletAddress);
         contract = new ethers.Contract(contractAddress, contractAbi, signer);
@@ -130,28 +188,33 @@ async function initializeContract() {
 // Login function to get authentication token
 async function login() {
     try {
-        if (!window.ethereum) {
-            throw Object.assign(new Error('MetaMask is not installed.'), {
-                userMessage: 'Please install MetaMask to log in.'
+        const ethereumProvider = window.ethereum || window.coinbaseWalletExtension;
+        if (!ethereumProvider) {
+            throw Object.assign(new Error('No wallet provider installed.'), {
+                userMessage: 'Please install MetaMask or Coinbase Wallet to log in.'
             });
         }
+        console.log('Checking wallet state before login...');
+        await checkMetaMaskState();
+
         console.log('Starting login process...');
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const provider = new ethers.providers.Web3Provider(ethereumProvider);
+        setupMetaMaskListeners(provider); // Set up event listeners
         const signer = provider.getSigner();
         console.log('Requesting wallet address for login...');
         const walletAddress = await withTimeout(
             signer.getAddress().catch(err => {
-                console.error('MetaMask getAddress error during login:', err);
+                console.error('Wallet getAddress error during login:', err);
                 if (err.code === 4001) {
                     throw new Error('User rejected wallet connection');
                 }
                 if (err.code === -32002) {
-                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                    throw new Error('Wallet request already pending. Please check your wallet extension.');
                 }
-                throw new Error('Failed to connect to MetaMask');
+                throw new Error('Failed to connect to wallet');
             }),
             15000,
-            'MetaMask wallet address request timed out during login'
+            'Wallet address request timed out during login'
         );
         console.log('Wallet Address:', walletAddress);
 
@@ -177,20 +240,20 @@ async function login() {
         console.log('Nonce received:', nonce);
 
         // Sign the nonce
-        console.log('Requesting MetaMask to sign the nonce...');
+        console.log('Requesting wallet to sign the nonce...');
         const signature = await withTimeout(
             signer.signMessage(nonce).catch(err => {
-                console.error('MetaMask signMessage error:', err);
+                console.error('Wallet signMessage error:', err);
                 if (err.code === 4001) {
                     throw new Error('User rejected signature');
                 }
                 if (err.code === -32002) {
-                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                    throw new Error('Wallet request already pending. Please check your wallet extension.');
                 }
-                throw new Error('Failed to sign message with MetaMask');
+                throw new Error('Failed to sign message with wallet');
             }),
             30000,
-            'MetaMask signing timed out'
+            'Wallet signing timed out'
         );
         console.log('Nonce signed successfully:', signature);
 
@@ -330,17 +393,17 @@ async function placeBet(betValue, gameId) {
         console.log('Placing bet with value (micro-USDC):', betValueInMicroUSDC.toString());
         const tx = await withTimeout(
             contract.placeBet(betValueInMicroUSDC, gameId).catch(err => {
-                console.error('MetaMask placeBet error:', err);
+                console.error('Wallet placeBet error:', err);
                 if (err.code === 4001) {
                     throw new Error('User rejected transaction');
                 }
                 if (err.code === -32002) {
-                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                    throw new Error('Wallet request already pending. Please check your wallet extension.');
                 }
-                throw new Error('Failed to place bet with MetaMask');
+                throw new Error('Failed to place bet with wallet');
             }),
             60000,
-            'MetaMask transaction confirmation timed out'
+            'Wallet transaction confirmation timed out'
         );
         console.log('Transaction sent:', tx.hash);
 
@@ -441,17 +504,17 @@ async function cancelBet() {
         console.log('Canceling bet...');
         const tx = await withTimeout(
             contract.cancelBet().catch(err => {
-                console.error('MetaMask cancelBet error:', err);
+                console.error('Wallet cancelBet error:', err);
                 if (err.code === 4001) {
                     throw new Error('User rejected transaction');
                 }
                 if (err.code === -32002) {
-                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                    throw new Error('Wallet request already pending. Please check your wallet extension.');
                 }
-                throw new Error('Failed to cancel bet with MetaMask');
+                throw new Error('Failed to cancel bet with wallet');
             }),
             60000,
-            'MetaMask transaction confirmation for cancelBet timed out'
+            'Wallet transaction confirmation for cancelBet timed out'
         );
         console.log('Transaction sent:', tx.hash);
 
@@ -527,17 +590,17 @@ async function claimWinnings(matchId) {
         console.log('Claiming winnings for matchId:', matchId);
         const tx = await withTimeout(
             contract.claimWinnings(matchId).catch(err => {
-                console.error('MetaMask claimWinnings error:', err);
+                console.error('Wallet claimWinnings error:', err);
                 if (err.code === 4001) {
                     throw new Error('User rejected transaction');
                 }
                 if (err.code === -32002) {
-                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                    throw new Error('Wallet request already pending. Please check your wallet extension.');
                 }
-                throw new Error('Failed to claim winnings with MetaMask');
+                throw new Error('Failed to claim winnings with wallet');
             }),
             60000,
-            'MetaMask transaction confirmation for claimWinnings timed out'
+            'Wallet transaction confirmation for claimWinnings timed out'
         );
         console.log('Transaction sent:', tx.hash);
 
