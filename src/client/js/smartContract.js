@@ -9,7 +9,6 @@ const WS_BASE_URL = 'https://rcadya-app-dee7ef0f2cc9.herokuapp.com';
 function getToken() {
     const token = localStorage.getItem('token');
     if (!token) return null;
-    // Validation: Check if token is JWT (3 parts separated by dots)
     if (token.split('.').length !== 3) {
         console.warn('Invalid token format. Clearing token.');
         localStorage.removeItem('token');
@@ -35,6 +34,14 @@ const REFRESH_COOLDOWN_MS = 60 * 1000; // 1 minute cooldown
 let refreshAttempts = 0;
 let lastRefreshTime = 0;
 
+// Timeout utility
+const withTimeout = (promise, timeoutMs, errorMessage) => {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(errorMessage)), timeoutMs))
+    ]);
+};
+
 // Fetch contract details from RCADYA with authentication
 async function getSmartContractDetails() {
     try {
@@ -43,12 +50,17 @@ async function getSmartContractDetails() {
                 userMessage: 'Please connect your wallet to log in.'
             });
         }
-        const response = await fetch(`${API_BASE_URL}/api/v1/smart-contract/details`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+        console.log('Fetching smart contract details...');
+        const response = await withTimeout(
+            fetch(`${API_BASE_URL}/api/v1/smart-contract/details`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }),
+            10000,
+            'Request to get smart contract details timed out'
+        );
         if (response.status === 401) {
             throw Object.assign(new Error('Authentication token expired or invalid. Please login again.'), {
                 userMessage: 'Your session has expired. Please reconnect your wallet.'
@@ -60,10 +72,11 @@ async function getSmartContractDetails() {
             });
         }
         const data = await response.json();
+        console.log('Smart contract details fetched successfully:', data);
         return data;
     } catch (error) {
         console.error('Error getting Smart Contract details:', error);
-        throw error; // Preserve original error for stack trace
+        throw error;
     }
 }
 
@@ -76,11 +89,27 @@ async function initializeContract() {
                 userMessage: 'Please install MetaMask to use this feature.'
             });
         }
+        console.log('Initializing smart contract...');
         const { address: contractAddress, abi: contractAbi, isMock } = await getSmartContractDetails();
         provider = new ethers.providers.Web3Provider(window.ethereum);
+        console.log('Requesting MetaMask signer...');
         signer = provider.getSigner();
+        console.log('Requesting wallet address from MetaMask...');
+        const walletAddress = await withTimeout(
+            signer.getAddress(),
+            10000,
+            'MetaMask wallet address request timed out'
+        ).catch(err => {
+            if (err.code === 4001) {
+                throw Object.assign(new Error('User rejected wallet connection'), {
+                    userMessage: 'You need to connect your wallet to proceed.'
+                });
+            }
+            throw Object.assign(err, { userMessage: 'Failed to connect to MetaMask. Please try again.' });
+        });
+        console.log('Connected Wallet Address:', walletAddress);
         contract = new ethers.Contract(contractAddress, contractAbi, signer);
-        isMockContract = isMock; // Store mock status globally
+        isMockContract = isMock;
         console.log(`Smart Contract initialized at ${contractAddress}${isMock ? ' (Mock Contract)' : ''}`);
         if (isMock) {
             console.warn('Using mock contract. Transactions will not affect real funds.');
@@ -88,7 +117,7 @@ async function initializeContract() {
         return contract;
     } catch (error) {
         console.error('Error initializing Smart Contract:', error);
-        throw error; // Preserve original error for stack trace
+        throw error;
     }
 }
 
@@ -100,62 +129,84 @@ async function login() {
                 userMessage: 'Please install MetaMask to log in.'
             });
         }
-
-        // Check if already connected
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        let walletAddress;
-        if (accounts.length > 0) {
-            walletAddress = accounts[0].toLowerCase();
-        } else {
-            // Only request accounts if not already connected
-            const newAccounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            walletAddress = newAccounts[0].toLowerCase();
-        }
-
+        console.log('Starting login process...');
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
+        console.log('Requesting wallet address for login...');
+        const walletAddress = await withTimeout(
+            signer.getAddress(),
+            10000,
+            'MetaMask wallet address request timed out during login'
+        ).catch(err => {
+            if (err.code === 4001) {
+                throw Object.assign(new Error('User rejected wallet connection'), {
+                    userMessage: 'You need to connect your wallet to log in.'
+                });
+            }
+            throw Object.assign(err, { userMessage: 'Failed to connect to MetaMask. Please try again.' });
+        });
+        console.log('Wallet Address:', walletAddress);
 
         // Request nonce
-        const nonceResponse = await fetch(`${API_BASE_URL}/api/v1/auth/nonce`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ walletAddress })
-        });
+        console.log('Requesting nonce from backend...');
+        const nonceResponse = await withTimeout(
+            fetch(`${API_BASE_URL}/api/v1/auth/nonce`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress })
+            }),
+            10000,
+            'Nonce request timed out'
+        );
         if (!nonceResponse.ok) {
             throw Object.assign(new Error(`Failed to get nonce: ${nonceResponse.statusText}`), {
                 userMessage: 'Unable to authenticate. Please try again.'
             });
         }
         const { nonce } = await nonceResponse.json();
+        console.log('Nonce received:', nonce);
 
         // Sign the nonce
-        const signature = await signer.signMessage(nonce);
+        console.log('Requesting MetaMask to sign the nonce...');
+        const signature = await withTimeout(
+            signer.signMessage(nonce),
+            30000,
+            'MetaMask signing timed out'
+        ).catch(err => {
+            if (err.code === 4001) {
+                throw Object.assign(new Error('User rejected signature'), {
+                    userMessage: 'You need to sign the message to log in.'
+                });
+            }
+            throw Object.assign(err, { userMessage: 'Failed to sign message with MetaMask. Please try again.' });
+        });
+        console.log('Nonce signed successfully:', signature);
 
         // Login to get token
-        const loginResponse = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ walletAddress, signature, message: nonce })
-        });
+        console.log('Sending login request to backend...');
+        const loginResponse = await withTimeout(
+            fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ walletAddress, signature, message: nonce })
+            }),
+            10000,
+            'Login request timed out'
+        );
         if (!loginResponse.ok) {
             throw Object.assign(new Error(`Login failed: ${loginResponse.statusText}`), {
                 userMessage: 'Login failed. Please check your wallet and try again.'
             });
         }
         const { token: newToken } = await loginResponse.json();
+        console.log('Login successful, token received:', newToken);
         token = setToken(newToken);
-        // Reset refresh attempts on successful login
         refreshAttempts = 0;
         lastRefreshTime = Date.now();
         return token;
     } catch (error) {
         console.error('Login error:', error);
-        if (error.code === 4001) {
-            throw Object.assign(new Error('User rejected the MetaMask request.'), {
-                userMessage: 'You need to connect your wallet to log in.'
-            });
-        }
-        throw error; // Preserve original error for stack trace
+        throw error;
     }
 }
 
@@ -165,46 +216,58 @@ function getGameTypeString(gameTypeNumber) {
     return gameTypes[gameTypeNumber] || 'Unknown';
 }
 
-// Helper function to handle API calls with token refresh
-async function fetchWithTokenRefresh(url, options, retryFn) {
-    try {
-        const response = await fetch(url, options);
-        if (response.status === 401) {
-            const now = Date.now();
-            if (refreshAttempts >= MAX_REFRESH_ATTEMPTS || (now - lastRefreshTime < REFRESH_COOLDOWN_MS)) {
-                throw Object.assign(new Error('Token refresh limit reached or cooldown active.'), {
-                    userMessage: 'Too many login attempts. Please wait a minute and try again.'
+// Helper function to handle API calls with token refresh and retries
+async function fetchWithTokenRefresh(url, options, maxRetries = 2) {
+    let attempts = 0;
+    let lastError;
+
+    while (attempts <= maxRetries) {
+        try {
+            console.log(`Fetching ${url} (attempt ${attempts + 1}/${maxRetries + 1})...`);
+            const response = await withTimeout(
+                fetch(url, options),
+                10000,
+                `Request to ${url} timed out`
+            );
+            if (response.status === 401) {
+                const now = Date.now();
+                if (refreshAttempts >= MAX_REFRESH_ATTEMPTS || (now - lastRefreshTime < REFRESH_COOLDOWN_MS)) {
+                    throw Object.assign(new Error('Token refresh limit reached or cooldown active.'), {
+                        userMessage: 'Too many login attempts. Please wait a minute and try again.'
+                    });
+                }
+                console.log('Token expired, attempting to refresh...');
+                refreshAttempts++;
+                await login();
+                lastRefreshTime = now;
+                if (!token) {
+                    throw Object.assign(new Error('Failed to refresh authentication token.'), {
+                        userMessage: 'Unable to refresh your session. Please reconnect your wallet.'
+                    });
+                }
+                options.headers['Authorization'] = `Bearer ${token}`;
+                continue; // Retry with new token
+            }
+            if (!response.ok) {
+                throw Object.assign(new Error(`Request failed: ${response.statusText}`), {
+                    userMessage: 'An error occurred. Please try again later.'
                 });
             }
-            console.log('Token expired, attempting to refresh...');
-            refreshAttempts++;
-            await login(); // Refresh token
-            lastRefreshTime = now;
-            if (!token) {
-                throw Object.assign(new Error('Failed to refresh authentication token.'), {
-                    userMessage: 'Unable to refresh your session. Please reconnect your wallet.'
-                });
+            console.log(`Successfully fetched ${url}`);
+            return response;
+        } catch (error) {
+            lastError = error;
+            attempts++;
+            if (attempts > maxRetries) {
+                console.error(`Failed to fetch ${url} after ${maxRetries + 1} attempts:`, error);
+                throw error;
             }
-            // Retry with new token
-            options.headers['Authorization'] = `Bearer ${token}`;
-            const retryResponse = await fetch(url, options);
-            if (!retryResponse.ok) {
-                throw Object.assign(new Error(`Retry failed: ${retryResponse.statusText}`), {
-                    userMessage: 'Operation failed after refreshing session. Please try again.'
-                });
-            }
-            return retryResponse;
+            const delay = Math.pow(2, attempts) * 1000; // Exponential backoff: 2s, 4s, 8s
+            console.warn(`Fetch failed for ${url}, retrying after ${delay}ms...`, error.message);
+            await new Promise(resolve => setTimeout(resolve, delay));
         }
-        if (!response.ok) {
-            throw Object.assign(new Error(`Request failed: ${response.statusText}`), {
-                userMessage: 'An error occurred. Please try again later.'
-            });
-        }
-        return response;
-    } catch (error) {
-        console.error(`Error in fetchWithTokenRefresh for ${url}:`, error);
-        throw error;
     }
+    throw lastError; // Should never reach here, but just in case
 }
 
 // Place a bet on GamePool Smart Contract
@@ -220,7 +283,6 @@ async function placeBet(betValue, gameId) {
                 userMessage: 'Invalid game ID. Please select a valid game.'
             });
         }
-        // Validate betValue against allowed values (in USDC)
         const allowedBetValues = [0.10, 0.20, 1, 3, 5];
         if (!allowedBetValues.includes(betValue)) {
             throw Object.assign(new Error(`Invalid betValue. Must be one of ${allowedBetValues.join(', ')} USDC.`), {
@@ -232,16 +294,34 @@ async function placeBet(betValue, gameId) {
             await initializeContract();
         }
 
-        const gameTypeNumber = await contract.gameTypes(gameId);
+        console.log('Checking game type for gameId:', gameId);
+        const gameTypeNumber = await withTimeout(
+            contract.gameTypes(gameId),
+            10000,
+            'Failed to fetch game type from smart contract: request timed out'
+        );
         if (gameTypeNumber.toString() === '0' && gameId !== 0) {
             throw Object.assign(new Error(`Game ID ${gameId} is not registered in the Smart Contract.`), {
                 userMessage: 'This game is not available for placing an amount.'
             });
         }
         const gameType = getGameTypeString(gameTypeNumber);
+        console.log('Game type:', gameType);
 
         const betValueInMicroUSDC = ethers.utils.parseUnits(betValue.toString(), 6);
-        const tx = await contract.placeBet(betValueInMicroUSDC, gameId);
+        console.log('Placing bet with value (micro-USDC):', betValueInMicroUSDC.toString());
+        const tx = await withTimeout(
+            contract.placeBet(betValueInMicroUSDC, gameId),
+            60000,
+            'MetaMask transaction confirmation timed out'
+        ).catch(err => {
+            if (err.code === 4001) {
+                throw Object.assign(new Error('User rejected transaction'), {
+                    userMessage: 'You need to confirm the transaction to place your amount.'
+                });
+            }
+            throw Object.assign(err, { userMessage: 'Failed to place amount with MetaMask. Please try again.' });
+        });
         console.log('Transaction sent:', tx.hash);
 
         if (isMockContract) {
@@ -258,23 +338,25 @@ async function placeBet(betValue, gameId) {
             });
         }
         const matchId = betPlacedEvent.args.matchId.toString();
+        console.log('Match ID from BetPlaced event:', matchId);
 
-        const walletAddress = (await signer.getAddress()).toLowerCase();
-        // Fetch updated match summary after the bet is placed to ensure totalPool is correct
+        const walletAddress = await signer.getAddress();
         const matchSummary = await contract.getMatchSummary(matchId);
         const totalPool = matchSummary.totalPool.toString(); // micro-USDC
+        console.log('Match summary totalPool (micro-USDC):', totalPool);
 
         const matchData = {
             match_id: matchId,
             gameId,
             bet_amount: betValueInMicroUSDC.toString(), // micro-USDC
-            totalPool, // Ensure totalPool reflects the updated value after the bet
+            totalPool,
             gameType,
-            players: [walletAddress],
+            players: [walletAddress.toLowerCase()],
             rankings: [],
             status: 'waiting'
         };
 
+        console.log('Saving match to backend:', matchData);
         const response = await fetchWithTokenRefresh(
             `${API_BASE_URL}/api/v1/matches/save-match`,
             {
@@ -290,22 +372,25 @@ async function placeBet(betValue, gameId) {
         const result = await response.json();
         console.log('Match saved:', result);
 
-        // Poll the backend to confirm the match is synced
         let attempts = 0;
         const maxAttempts = 3;
         while (attempts < maxAttempts) {
-            const checkResponse = await fetch(`${API_BASE_URL}/api/v1/smart-contract/match-summary/${matchId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+            console.log(`Checking match sync with backend (attempt ${attempts + 1}/${maxAttempts})...`);
+            const checkResponse = await fetchWithTokenRefresh(
+                `${API_BASE_URL}/api/v1/smart-contract/match-summary/${matchId}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
                 }
-            });
+            );
             if (checkResponse.ok) {
                 console.log(`Match ${matchId} confirmed synced with backend after ${attempts + 1} attempts`);
                 break;
             }
             console.warn(`Match ${matchId} not yet synced, retrying (${attempts + 1}/${maxAttempts})...`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+            await new Promise(resolve => setTimeout(resolve, 1000));
             attempts++;
         }
         if (attempts >= maxAttempts) {
@@ -315,7 +400,7 @@ async function placeBet(betValue, gameId) {
         return { txHash: tx.hash, matchId };
     } catch (error) {
         console.error('Error placing amount:', error);
-        throw error; // Preserve original error for stack trace
+        throw error;
     }
 }
 
@@ -331,7 +416,19 @@ async function cancelBet() {
             await initializeContract();
         }
 
-        const tx = await contract.cancelBet();
+        console.log('Canceling bet...');
+        const tx = await withTimeout(
+            contract.cancelBet(),
+            60000,
+            'MetaMask transaction confirmation for cancelBet timed out'
+        ).catch(err => {
+            if (err.code === 4001) {
+                throw Object.assign(new Error('User rejected transaction'), {
+                    userMessage: 'You need to confirm the transaction to cancel your amount.'
+                });
+            }
+            throw Object.assign(err, { userMessage: 'Failed to cancel amount with MetaMask. Please try again.' });
+        });
         console.log('Transaction sent:', tx.hash);
 
         if (isMockContract) {
@@ -344,7 +441,7 @@ async function cancelBet() {
         return tx.hash;
     } catch (error) {
         console.error('Error canceling amount:', error);
-        throw error; // Preserve original error for stack trace
+        throw error;
     }
 }
 
@@ -366,7 +463,7 @@ async function claimWinnings(matchId) {
             await initializeContract();
         }
 
-        // Check if the match exists and winnings are available
+        console.log('Checking match summary for matchId:', matchId);
         const matchSummaryResponse = await fetchWithTokenRefresh(
             `${API_BASE_URL}/api/v1/smart-contract/match-summary/${matchId}`,
             {
@@ -384,6 +481,7 @@ async function claimWinnings(matchId) {
         }
 
         const walletAddress = (await signer.getAddress()).toLowerCase();
+        console.log('Checking winnings for wallet:', walletAddress);
         const winningsResponse = await fetchWithTokenRefresh(
             `${API_BASE_URL}/api/v1/smart-contract/player-winnings/${matchId}/${walletAddress}`,
             {
@@ -400,7 +498,19 @@ async function claimWinnings(matchId) {
             });
         }
 
-        const tx = await contract.claimWinnings(matchId);
+        console.log('Claiming winnings for matchId:', matchId);
+        const tx = await withTimeout(
+            contract.claimWinnings(matchId),
+            60000,
+            'MetaMask transaction confirmation for claimWinnings timed out'
+        ).catch(err => {
+            if (err.code === 4001) {
+                throw Object.assign(new Error('User rejected transaction'), {
+                    userMessage: 'You need to confirm the transaction to claim your winnings.'
+                });
+            }
+            throw Object.assign(err, { userMessage: 'Failed to claim winnings with MetaMask. Please try again.' });
+        });
         console.log('Transaction sent:', tx.hash);
 
         if (isMockContract) {
@@ -413,12 +523,13 @@ async function claimWinnings(matchId) {
         return tx.hash;
     } catch (error) {
         console.error('Error claiming winnings:', error);
-        throw error; // Preserve original error for stack trace
+        throw error;
     }
 }
 
 // Setup WebSocket for real-time updates with reconnection logic and event handling
 function setupWebSocket(callbacks) {
+    console.log('Setting up WebSocket connection...');
     const socket = io(WS_BASE_URL, {
         reconnection: true,
         reconnectionAttempts: 5,
@@ -427,7 +538,6 @@ function setupWebSocket(callbacks) {
 
     socket.on('connect', () => {
         console.log('Socket.IO Connected');
-        // Send authentication token if required by the Server
         if (token) {
             socket.emit('AUTH', { token });
         }
@@ -435,14 +545,13 @@ function setupWebSocket(callbacks) {
 
     socket.on('message', (message) => {
         console.log('Socket.IO message received:', message);
-        // Process all broadcasted events with specific callbacks
         switch (message.type) {
             case 'MATCH_UPDATED':
                 if (callbacks.onMatchUpdated) {
                     callbacks.onMatchUpdated({
                         matchId: message.matchId,
                         status: message.status,
-                        totalPool: message.totalPool, // USDC
+                        totalPool: message.totalPool,
                         players: message.players,
                         gameType: message.gameType
                     });
@@ -452,7 +561,7 @@ function setupWebSocket(callbacks) {
                 if (callbacks.onMatchStarted) {
                     callbacks.onMatchStarted({
                         matchId: message.matchId,
-                        totalPool: message.totalPool, // USDC
+                        totalPool: message.totalPool,
                         gameType: message.gameType,
                         players: message.players
                     });
@@ -462,7 +571,7 @@ function setupWebSocket(callbacks) {
                 if (callbacks.onMatchCompleted) {
                     callbacks.onMatchCompleted({
                         matchId: message.matchId,
-                        totalPool: message.totalPool, // USDC
+                        totalPool: message.totalPool,
                         gameType: message.gameType,
                         players: message.players
                     });
@@ -472,10 +581,10 @@ function setupWebSocket(callbacks) {
                 if (callbacks.onWinningsDistributed) {
                     callbacks.onWinningsDistributed({
                         matchId: message.matchId,
-                        totalPool: message.totalPool, // USDC
-                        winnings: message.winnings, // Object with walletAddress: amount (USDC)
-                        platformFee: message.platformFee, // USDC
-                        gameOwnerFee: message.gameOwnerFee, // USDC
+                        totalPool: message.totalPool,
+                        winnings: message.winnings,
+                        platformFee: message.platformFee,
+                        gameOwnerFee: message.gameOwnerFee,
                         winners: message.winners
                     });
                 }
@@ -484,7 +593,7 @@ function setupWebSocket(callbacks) {
                 if (callbacks.onTransactionHistoryUpdated) {
                     callbacks.onTransactionHistoryUpdated({
                         walletAddress: message.walletAddress,
-                        matches: message.matches // Array of { matchId, won, totalPool, gameType }
+                        matches: message.matches
                     });
                 }
                 break;
@@ -512,8 +621,8 @@ function setupWebSocket(callbacks) {
     return socket;
 }
 
-// Export all functions as named exports
-export {
+// Export all functions
+export default {
     getSmartContractDetails,
     initializeContract,
     login,
