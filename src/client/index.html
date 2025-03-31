@@ -137,31 +137,6 @@
                     await sendWalletDataToPopup();
                 });
 
-                // Listen for messages from the iframe to handle bet placement or hide it
-                window.addEventListener("message", function(event) {
-                    if (event.data.action === "hideIframe") {
-                        startPopup.style.display = "none";
-                    } else if (event.data.betConfirmed && event.data.betValue) {
-                        try {
-                            console.log("Amount confirmed with value:", event.data.betValue);
-                            // Skip smart contract interaction in development mode (no deployed contract)
-                            console.log("Smart contract not deployed. Using mock bet placement for testing.");
-                            alert("Amount placed successfully (mocked for development mode)");
-
-                            // Trigger app.js to start the game with mock data
-                            const app = document.querySelector('script[src="js/app.js"]');
-                            if (app) {
-                                window.postMessage({
-                                    betConfirmed: true,
-                                    betValue: event.data.betValue
-                                }, "*");
-                            }
-                        } catch (error) {
-                            console.error("Error placing amount:", error);
-                            alert("Error placing amount. Please try again (smart contract not deployed in development mode).");
-                        }
-                    }
-                }, false);
             } else {
                 // MetaMask is not installed, but don't show any prompt on page load.
             }
@@ -195,9 +170,15 @@
                     }
                 } catch (error) {
                     console.error("MetaMask connection failed:", error);
-                    alert("MetaMask connection failed. Please try again or install MetaMask.");
                 }
             };
+
+            // Listen for messages from the iframe to hide it
+            window.addEventListener("message", function(event) {
+                if (event.data.action === "hideIframe") {
+                    startPopup.style.display = "none";
+                }
+            }, false);
         });
     </script>
 </body>
