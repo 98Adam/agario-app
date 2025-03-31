@@ -93,6 +93,7 @@
                 async function isMetaMaskConnected() {
                     try {
                         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                        console.log("Checking MetaMask connection, accounts:", accounts);
                         return accounts.length > 0;
                     } catch (error) {
                         console.error("Error checking MetaMask connection:", error);
@@ -103,11 +104,13 @@
                 // Connect to MetaMask
                 async function connectMetaMask() {
                     try {
+                        console.log("Attempting to connect to MetaMask...");
                         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
                         if (accounts.length > 0) {
                             console.log("MetaMask connected:", accounts[0]);
                             return true;
                         }
+                        console.warn("No accounts returned after MetaMask connection attempt.");
                         return false;
                     } catch (error) {
                         console.error("MetaMask connection failed:", error);
@@ -123,9 +126,11 @@
                         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
                         if (accounts.length > 0) {
                             const walletAddress = accounts[0];
+                            console.log("Fetching USDC balance for wallet:", walletAddress);
                             const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
                             const balance = await usdcContract.methods.balanceOf(walletAddress).call();
                             const walletBalance = web3.utils.fromWei(balance, 'mwei');
+                            console.log("Wallet balance (USDC):", walletBalance);
 
                             // Check if balance has changed
                             if (walletBalance !== lastWalletBalance) {
@@ -141,11 +146,16 @@
                                 localStorage.setItem('walletAddress', walletAddress);
                                 localStorage.setItem('walletBalance', walletBalance);
 
-                                // Send wallet data to the Popup
-                                startPopup.contentWindow.postMessage({
-                                    walletAddress: walletAddress,
-                                    walletBalance: walletBalance
-                                }, "*");
+                                // Ensure the iframe is fully loaded before sending data
+                                if (startPopup.contentWindow) {
+                                    console.log("Sending wallet data to popup:", { walletAddress, walletBalance });
+                                    startPopup.contentWindow.postMessage({
+                                        walletAddress: walletAddress,
+                                        walletBalance: walletBalance
+                                    }, "*");
+                                } else {
+                                    console.warn("startPopup contentWindow not available yet.");
+                                }
                             }
                         } else {
                             console.warn("No accounts connected to send wallet data.");
@@ -157,18 +167,25 @@
 
                 // Send data to the Popup when it's loaded
                 startPopup.addEventListener("load", () => {
+                    console.log("startPopup iframe loaded, resetting hasSentData flag.");
                     hasSentData = false; // Reset flag on iframe load
-                    sendWalletDataToPopup();
+                    // Add a slight delay to ensure the iframe is fully ready
+                    setTimeout(() => {
+                        sendWalletDataToPopup();
+                    }, 500);
                 });
 
                 // Detect MetaMask account changes
                 window.ethereum.on('accountsChanged', async (accounts) => {
+                    console.log("MetaMask accounts changed:", accounts);
                     hasSentData = false; // Reset flag on account change
                     if (accounts.length === 0) {
                         // User disconnected MetaMask
+                        console.log("MetaMask disconnected, hiding popup.");
                         startPopup.style.display = "none"; // Hide popup if disconnected
                     } else {
                         await sendWalletDataToPopup();
+                        console.log("MetaMask reconnected, showing popup.");
                         startPopup.style.display = "block"; // Show popup if reconnected
                     }
                 });
@@ -195,14 +212,18 @@
                         const connected = await connectMetaMask();
                         if (connected) {
                             await sendWalletDataToPopup();
+                            console.log("Connection successful, showing startPopup.");
                             startPopup.style.display = "block"; // Show popup only if connected
+                        } else {
+                            console.log("Connection failed, popup remains hidden.");
                         }
                     } else {
                         // Already connected
                         await sendWalletDataToPopup();
+                        console.log("Already connected, showing startPopup.");
                         startPopup.style.display = "block"; // Show popup
                     }
-                });
+                };
 
             } else {
                 // MetaMask not installed, handle "Play" button click
@@ -221,6 +242,7 @@
             // Listen for messages from the iframe to hide it
             window.addEventListener("message", function(event) {
                 if (event.data.action === "hideIframe") {
+                    console.log("Received message to hide iframe.");
                     startPopup.style.display = "none";
                 }
             }, false);
