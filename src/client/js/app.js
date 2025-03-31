@@ -66,83 +66,33 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Function to check MetaMask Connection
-async function checkMetaMaskConnection() {
-    const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com";
-    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
-    const isMetaMaskBrowser = window.ethereum && window.ethereum.isMetaMask;
-
-    if (isMobileDevice && !isMetaMaskBrowser) {
-        // Show alert only if not already inside MetaMask's browser
-        alert(`Please copy this link and open it inside MetaMask's browser for connection:\n\n${dAppURL}`);
-        return false;
-    }
-
-    if (isMetaMaskBrowser) {
-        try {
-            const accounts = await ethereum.request({ method: 'eth_accounts' });
-            if (accounts && accounts.length > 0) {
-                // User is connected
-                return true;
-            } else {
-                // User is not connected; prompt to connect
-                await ethereum.request({ method: 'eth_requestAccounts' });
-                return true;
-            }
-        } catch (error) {
-            console.error("Error checking MetaMask connection:", error);
-            return false;
-        }
-    }
-
-    // For desktop users without MetaMask
-    if (!isMetaMaskBrowser && !isMobileDevice) {
-        const confirmation = confirm("MetaMask is not installed. Do you want to download it?");
-        if (confirmation) {
-            window.open("https://metamask.io/download/", "_blank");
-        }
-        return false;
-    }
-
-    return false;
-}
-
-// Function to request MetaMask
-async function connectMetaMask() {
-    try {
-        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-        return accounts.length > 0;
-    } catch (error) {
-        console.error("MetaMask connection failed:", error);
-        return false;
-    }
-}
+// Removed checkMetaMaskConnection and connectMetaMask functions since index.html handles wallet connection
 
 window.onload = function () {
     var btn = document.getElementById('startButton');
     var startPopup = document.getElementById('startPopup'); // Reference to StartPopup iframe
 
-    btn.onclick = async function () {
+    // Debounce function to prevent rapid clicks
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
+    btn.onclick = debounce(function () {
         if (validNick()) {
             // Hide error message
             document.querySelector('#startMenu .input-error').style.opacity = 0;
 
-            // Check MetaMask's Connection Status
-            let isConnected = await checkMetaMaskConnection();
-
-            if (!isConnected) {
-                // If not connected, request MetaMask
-                isConnected = await connectMetaMask();
-            }
-
-            if (isConnected) {
-                // Show startPopup for bet selection
-                startPopup.style.display = "block";
-            }
+            // Wallet connection is handled by index.html's startButton.onclick handler
+            // Simply show the startPopup, which will be triggered after wallet connection
+            startPopup.style.display = "block";
         } else {
             document.querySelector('#startMenu .input-error').style.opacity = 1;
         }
-    };
+    }, 1000);
 
     // Settings Menu toggle
     var settingsMenu = document.getElementById('settingsButton');
@@ -352,7 +302,6 @@ function setupSocket(socket) {
             }
         }, 2500);
     });
-
 
     socket.on('kick', function (reason) {
         global.gameStart = false;
