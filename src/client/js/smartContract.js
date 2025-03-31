@@ -100,9 +100,20 @@ async function login() {
                 userMessage: 'Please install MetaMask to log in.'
             });
         }
+
+        // Check if already connected
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        let walletAddress;
+        if (accounts.length > 0) {
+            walletAddress = accounts[0].toLowerCase();
+        } else {
+            // Only request accounts if not already connected
+            const newAccounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            walletAddress = newAccounts[0].toLowerCase();
+        }
+
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = provider.getSigner();
-        const walletAddress = (await signer.getAddress()).toLowerCase();
 
         // Request nonce
         const nonceResponse = await fetch(`${API_BASE_URL}/api/v1/auth/nonce`, {
@@ -139,6 +150,11 @@ async function login() {
         return token;
     } catch (error) {
         console.error('Login error:', error);
+        if (error.code === 4001) {
+            throw Object.assign(new Error('User rejected the MetaMask request.'), {
+                userMessage: 'You need to connect your wallet to log in.'
+            });
+        }
         throw error; // Preserve original error for stack trace
     }
 }
@@ -174,7 +190,7 @@ async function fetchWithTokenRefresh(url, options, retryFn) {
             const retryResponse = await fetch(url, options);
             if (!retryResponse.ok) {
                 throw Object.assign(new Error(`Retry failed: ${retryResponse.statusText}`), {
-                userMessage: 'Operation failed after refreshing session. Please try again.'
+                    userMessage: 'Operation failed after refreshing session. Please try again.'
                 });
             }
             return retryResponse;
