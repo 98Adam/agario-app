@@ -67,6 +67,8 @@ async function getSmartContractDetails() {
             });
         }
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Failed to get contract details:', response.status, errorText);
             throw Object.assign(new Error(`Failed to get contract details from server: ${response.statusText}`), {
                 userMessage: 'Unable to fetch contract details. Please try again later.'
             });
@@ -96,17 +98,19 @@ async function initializeContract() {
         signer = provider.getSigner();
         console.log('Requesting wallet address from MetaMask...');
         const walletAddress = await withTimeout(
-            signer.getAddress(),
-            10000,
+            signer.getAddress().catch(err => {
+                console.error('MetaMask getAddress error:', err);
+                if (err.code === 4001) {
+                    throw new Error('User rejected wallet connection');
+                }
+                if (err.code === -32002) {
+                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                }
+                throw new Error('Failed to connect to MetaMask');
+            }),
+            15000, // Restored 15-second timeout
             'MetaMask wallet address request timed out'
-        ).catch(err => {
-            if (err.code === 4001) {
-                throw Object.assign(new Error('User rejected wallet connection'), {
-                    userMessage: 'You need to connect your wallet to proceed.'
-                });
-            }
-            throw Object.assign(err, { userMessage: 'Failed to connect to MetaMask. Please try again.' });
-        });
+        );
         console.log('Connected Wallet Address:', walletAddress);
         contract = new ethers.Contract(contractAddress, contractAbi, signer);
         isMockContract = isMock;
@@ -117,7 +121,9 @@ async function initializeContract() {
         return contract;
     } catch (error) {
         console.error('Error initializing Smart Contract:', error);
-        throw error;
+        throw Object.assign(error, {
+            userMessage: error.message.includes('User rejected') ? 'You need to connect your wallet to proceed.' : 'Failed to initialize contract. Please try again.'
+        });
     }
 }
 
@@ -134,17 +140,19 @@ async function login() {
         const signer = provider.getSigner();
         console.log('Requesting wallet address for login...');
         const walletAddress = await withTimeout(
-            signer.getAddress(),
-            10000,
+            signer.getAddress().catch(err => {
+                console.error('MetaMask getAddress error during login:', err);
+                if (err.code === 4001) {
+                    throw new Error('User rejected wallet connection');
+                }
+                if (err.code === -32002) {
+                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                }
+                throw new Error('Failed to connect to MetaMask');
+            }),
+            15000,
             'MetaMask wallet address request timed out during login'
-        ).catch(err => {
-            if (err.code === 4001) {
-                throw Object.assign(new Error('User rejected wallet connection'), {
-                    userMessage: 'You need to connect your wallet to log in.'
-                });
-            }
-            throw Object.assign(err, { userMessage: 'Failed to connect to MetaMask. Please try again.' });
-        });
+        );
         console.log('Wallet Address:', walletAddress);
 
         // Request nonce
@@ -159,6 +167,8 @@ async function login() {
             'Nonce request timed out'
         );
         if (!nonceResponse.ok) {
+            const errorText = await nonceResponse.text();
+            console.error('Nonce request failed:', nonceResponse.status, errorText);
             throw Object.assign(new Error(`Failed to get nonce: ${nonceResponse.statusText}`), {
                 userMessage: 'Unable to authenticate. Please try again.'
             });
@@ -169,17 +179,19 @@ async function login() {
         // Sign the nonce
         console.log('Requesting MetaMask to sign the nonce...');
         const signature = await withTimeout(
-            signer.signMessage(nonce),
+            signer.signMessage(nonce).catch(err => {
+                console.error('MetaMask signMessage error:', err);
+                if (err.code === 4001) {
+                    throw new Error('User rejected signature');
+                }
+                if (err.code === -32002) {
+                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                }
+                throw new Error('Failed to sign message with MetaMask');
+            }),
             30000,
             'MetaMask signing timed out'
-        ).catch(err => {
-            if (err.code === 4001) {
-                throw Object.assign(new Error('User rejected signature'), {
-                    userMessage: 'You need to sign the message to log in.'
-                });
-            }
-            throw Object.assign(err, { userMessage: 'Failed to sign message with MetaMask. Please try again.' });
-        });
+        );
         console.log('Nonce signed successfully:', signature);
 
         // Login to get token
@@ -194,6 +206,8 @@ async function login() {
             'Login request timed out'
         );
         if (!loginResponse.ok) {
+            const errorText = await loginResponse.text();
+            console.error('Login request failed:', loginResponse.status, errorText);
             throw Object.assign(new Error(`Login failed: ${loginResponse.statusText}`), {
                 userMessage: 'Login failed. Please check your wallet and try again.'
             });
@@ -206,7 +220,9 @@ async function login() {
         return token;
     } catch (error) {
         console.error('Login error:', error);
-        throw error;
+        throw Object.assign(error, {
+            userMessage: error.message.includes('User rejected') ? 'You need to sign the message to log in.' : 'Failed to log in. Please try again.'
+        });
     }
 }
 
@@ -246,9 +262,11 @@ async function fetchWithTokenRefresh(url, options, maxRetries = 2) {
                     });
                 }
                 options.headers['Authorization'] = `Bearer ${token}`;
-                continue; // Retry with new token
+                continue;
             }
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Request failed for ${url}:`, response.status, errorText);
                 throw Object.assign(new Error(`Request failed: ${response.statusText}`), {
                     userMessage: 'An error occurred. Please try again later.'
                 });
@@ -267,7 +285,7 @@ async function fetchWithTokenRefresh(url, options, maxRetries = 2) {
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
-    throw lastError; // Should never reach here, but just in case
+    throw lastError;
 }
 
 // Place a bet on GamePool Smart Contract
@@ -311,17 +329,19 @@ async function placeBet(betValue, gameId) {
         const betValueInMicroUSDC = ethers.utils.parseUnits(betValue.toString(), 6);
         console.log('Placing bet with value (micro-USDC):', betValueInMicroUSDC.toString());
         const tx = await withTimeout(
-            contract.placeBet(betValueInMicroUSDC, gameId),
+            contract.placeBet(betValueInMicroUSDC, gameId).catch(err => {
+                console.error('MetaMask placeBet error:', err);
+                if (err.code === 4001) {
+                    throw new Error('User rejected transaction');
+                }
+                if (err.code === -32002) {
+                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                }
+                throw new Error('Failed to place bet with MetaMask');
+            }),
             60000,
             'MetaMask transaction confirmation timed out'
-        ).catch(err => {
-            if (err.code === 4001) {
-                throw Object.assign(new Error('User rejected transaction'), {
-                    userMessage: 'You need to confirm the transaction to place your amount.'
-                });
-            }
-            throw Object.assign(err, { userMessage: 'Failed to place amount with MetaMask. Please try again.' });
-        });
+        );
         console.log('Transaction sent:', tx.hash);
 
         if (isMockContract) {
@@ -342,13 +362,13 @@ async function placeBet(betValue, gameId) {
 
         const walletAddress = await signer.getAddress();
         const matchSummary = await contract.getMatchSummary(matchId);
-        const totalPool = matchSummary.totalPool.toString(); // micro-USDC
+        const totalPool = matchSummary.totalPool.toString();
         console.log('Match summary totalPool (micro-USDC):', totalPool);
 
         const matchData = {
             match_id: matchId,
             gameId,
-            bet_amount: betValueInMicroUSDC.toString(), // micro-USDC
+            bet_amount: betValueInMicroUSDC.toString(),
             totalPool,
             gameType,
             players: [walletAddress.toLowerCase()],
@@ -400,7 +420,9 @@ async function placeBet(betValue, gameId) {
         return { txHash: tx.hash, matchId };
     } catch (error) {
         console.error('Error placing amount:', error);
-        throw error;
+        throw Object.assign(error, {
+            userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to place your amount.' : 'Failed to place amount. Please try again.'
+        });
     }
 }
 
@@ -418,17 +440,19 @@ async function cancelBet() {
 
         console.log('Canceling bet...');
         const tx = await withTimeout(
-            contract.cancelBet(),
+            contract.cancelBet().catch(err => {
+                console.error('MetaMask cancelBet error:', err);
+                if (err.code === 4001) {
+                    throw new Error('User rejected transaction');
+                }
+                if (err.code === -32002) {
+                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                }
+                throw new Error('Failed to cancel bet with MetaMask');
+            }),
             60000,
             'MetaMask transaction confirmation for cancelBet timed out'
-        ).catch(err => {
-            if (err.code === 4001) {
-                throw Object.assign(new Error('User rejected transaction'), {
-                    userMessage: 'You need to confirm the transaction to cancel your amount.'
-                });
-            }
-            throw Object.assign(err, { userMessage: 'Failed to cancel amount with MetaMask. Please try again.' });
-        });
+        );
         console.log('Transaction sent:', tx.hash);
 
         if (isMockContract) {
@@ -441,7 +465,9 @@ async function cancelBet() {
         return tx.hash;
     } catch (error) {
         console.error('Error canceling amount:', error);
-        throw error;
+        throw Object.assign(error, {
+            userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to cancel your amount.' : 'Failed to cancel amount. Please try again.'
+        });
     }
 }
 
@@ -500,21 +526,23 @@ async function claimWinnings(matchId) {
 
         console.log('Claiming winnings for matchId:', matchId);
         const tx = await withTimeout(
-            contract.claimWinnings(matchId),
+            contract.claimWinnings(matchId).catch(err => {
+                console.error('MetaMask claimWinnings error:', err);
+                if (err.code === 4001) {
+                    throw new Error('User rejected transaction');
+                }
+                if (err.code === -32002) {
+                    throw new Error('MetaMask request already pending. Please check your MetaMask extension.');
+                }
+                throw new Error('Failed to claim winnings with MetaMask');
+            }),
             60000,
             'MetaMask transaction confirmation for claimWinnings timed out'
-        ).catch(err => {
-            if (err.code === 4001) {
-                throw Object.assign(new Error('User rejected transaction'), {
-                    userMessage: 'You need to confirm the transaction to claim your winnings.'
-                });
-            }
-            throw Object.assign(err, { userMessage: 'Failed to claim winnings with MetaMask. Please try again.' });
-        });
+        );
         console.log('Transaction sent:', tx.hash);
 
         if (isMockContract) {
-            console.log('Mock contract: Simulating winnings claim without real fund transfer.');
+            console.log('Mock contract: Simulating winnings claim without real fund changes.');
         }
 
         await tx.wait();
@@ -523,7 +551,9 @@ async function claimWinnings(matchId) {
         return tx.hash;
     } catch (error) {
         console.error('Error claiming winnings:', error);
-        throw error;
+        throw Object.assign(error, {
+            userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to claim your winnings.' : 'Failed to claim winnings. Please try again.'
+        });
     }
 }
 
@@ -621,13 +651,5 @@ function setupWebSocket(callbacks) {
     return socket;
 }
 
-// Export all functions
-export default {
-    getSmartContractDetails,
-    initializeContract,
-    login,
-    placeBet,
-    cancelBet,
-    claimWinnings,
-    setupWebSocket,
-};
+// Export functions for use in other scripts
+export { login, initializeContract, placeBet, cancelBet, claimWinnings, getSmartContractDetails, setupWebSocket };
