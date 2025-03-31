@@ -64,89 +64,112 @@
     <script src="js/app.js"></script>
 
     <script>
+
         document.addEventListener("DOMContentLoaded", function() {
             const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com";
             const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+            const isMetaMaskInstalled = typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
 
-            // Reference both iframes globally
+            // Reference both iframes globally to avoid issues
             const startPopup = document.getElementById("startPopup");
             const finalPopup = document.getElementById("finalPopup");
 
-            let isWalletConnected = false; // Sets not connected state as default
+            if (isMetaMaskInstalled) {
+                const web3 = new Web3(window.ethereum);
+                const usdcContractAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+                const usdcAbi = [
+                    {
+                        "constant": true,
+                        "inputs": [{"name": "_owner", "type": "address"}],
+                        "name": "balanceOf",
+                        "outputs": [{"name": "balance", "type": "uint256"}],
+                        "type": "function"
+                    }
+                ];
 
-            const USDC_CONTRACT_ADDRESS = '0xa0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; // USDC Address
-            const USDC_ABI = [
-                {
-                    "constant": true,
-                    "inputs": [{"name": "_owner", "type": "address"}],
-                    "name": "balanceOf",
-                    "outputs": [{"name": "balance", "type": "uint256"}],
-                    "type": "function"
-                }
-            ];
+                let hasSentData = false; // Ensure data is sent only once per connection
+                let lastWalletBalance = null; // Track last sent Wallet Balance
 
-            // Check if multiple providers are injected and select MetaMask explicitly
-            function getMetaMaskProvider() {
-                if (typeof window.ethereum !== "undefined" && window.ethereum.providers) {
-                    const metamaskProvider = window.ethereum.providers.find(provider => provider.isMetaMask);
-                    return metamaskProvider || null; // Return MetaMask provider or null if not found
-                } else if (typeof window.ethereum !== "undefined" && window.ethereum.isMetaMask) {
-                    return window.ethereum;
-                }
-                return null;
-            }
-
-            // Function to get USDC Balance
-            async function getUSDCBalance(account, web3Provider) {
-                if (web3Provider) {
-                    const web3 = new Web3(web3Provider);
-                    const contract = new web3.eth.Contract(USDC_ABI, USDC_CONTRACT_ADDRESS);
-                    const balance = await contract.methods.balanceOf(account).call();
-                    return web3.utils.fromWei(balance, 'mwei'); // USDC has 6 decimals
-                } else {
-                    console.error('Ethereum provider not detected');
-                    return 0;
-                }
-            }
-
-            // Connect to MetaMask on button click
-            async function connectToMetaMask() {
-                const metamaskProvider = getMetaMaskProvider();
-
-                if (metamaskProvider) {
+                async function sendWalletDataToPopup() {
                     try {
-                        console.log("Attempting to connect to MetaMask...");
-                        const accounts = await metamaskProvider.request({ method: "eth_requestAccounts" });
+                        const accounts = await ethereum.request({ method: 'eth_accounts' });
                         if (accounts.length > 0) {
-                            const account = accounts[0];
-                            const usdcBalance = await getUSDCBalance(account, metamaskProvider);
+                            const walletAddress = accounts[0];
+                            const usdcContract = new web3.eth.Contract(usdcAbi, usdcContractAddress);
+                            const balance = await usdcContract.methods.balanceOf(walletAddress).call();
+                            const walletBalance = web3.utils.fromWei(balance, 'mwei');
 
-                            console.log("Connected Wallet Address:", account);
-                            console.log("Connected Wallet USDC Balance:", usdcBalance);
+                            // Check if there's need to reset sent data based on balance changes
+                            if (walletBalance !== lastWalletBalance) {
+                                hasSentData = false; // Reset if balance has changed
+                                lastWalletBalance = walletBalance; // Update last known balance
+                            }
 
-                            // Store Wallet Address and Balance in localStorage
-                            localStorage.setItem('walletAddress', account);
-                            localStorage.setItem('walletBalance', usdcBalance);
+                            // Send data only if not already sent or balance has changed
+                            if (!hasSentData) {
+                                hasSentData = true;
 
-                            isWalletConnected = true;
-                            return true;
-                        } else {
-                            console.log("MetaMask connection failed: No accounts returned.");
-                            return false;
+                                // Store wallet info in localStorage for potential reload
+                                localStorage.setItem('walletAddress', walletAddress);
+                                localStorage.setItem('walletBalance', walletBalance);
+
+                                // Send wallet data to the Popup
+                                startPopup.contentWindow.postMessage({
+                                    walletAddress: walletAddress,
+                                    walletBalance: walletBalance
+                                }, "*");
+                            }
                         }
                     } catch (error) {
-                        console.error('MetaMask connection error:', error);
-                        if (error.code === 4001) {
-                            alert("You need to connect your MetaMask wallet to play.");
-                        } else if (error.message.includes("message port closed")) {
-                            console.error("Message port closed error detected during eth_requestAccounts.");
-                            alert("MetaMask connection failed due to a communication error. Please try again or use a different wallet.");
-                        }
-                        return false;
+                        console.error("Error retrieving wallet data:", error);
                     }
-                } else {
-                    // If MetaMask is not installed
-                    console.log("MetaMask not installed, prompting user.");
+                }
+
+                // Send data to the Popup when it's loaded and reset flag to allow one-time sending
+                startPopup.addEventListener("load", () => {
+                    hasSentData = false; // Reset flag on iframe load to allow sending data
+                    sendWalletDataToPopup();
+                });
+
+                // Detect when MetaMask account is changed and reset flag to allow one-time sending
+                ethereum.on('accountsChanged', async () => {
+                    hasSentData = false; // Reset flag on account change
+                    await sendWalletDataToPopup();
+                });
+
+                // Listen for messages from the iframe to handle bet placement or hide it
+                window.addEventListener("message", function(event) {
+                    if (event.data.action === "hideIframe") {
+                        startPopup.style.display = "none";
+                    } else if (event.data.betConfirmed && event.data.betValue) {
+                        try {
+                            console.log("Amount confirmed with value:", event.data.betValue);
+                            // Skip smart contract interaction in development mode (no deployed contract)
+                            console.log("Smart contract not deployed. Using mock bet placement for testing.");
+                            alert("Amount placed successfully (mocked for development mode)");
+
+                            // Trigger app.js to start the game with mock data
+                            const app = document.querySelector('script[src="js/app.js"]');
+                            if (app) {
+                                window.postMessage({
+                                    betConfirmed: true,
+                                    betValue: event.data.betValue
+                                }, "*");
+                            }
+                        } catch (error) {
+                            console.error("Error placing amount:", error);
+                            alert("Error placing amount. Please try again (smart contract not deployed in development mode).");
+                        }
+                    }
+                }, false);
+            } else {
+                // MetaMask is not installed, but don't show any prompt on page load.
+            }
+
+            // Trigger MetaMask connection or installation on "Play" button click
+            document.getElementById('startButton').onclick = async function() {
+                if (!isMetaMaskInstalled) {
+                    // MetaMask not installed
                     if (isMobileDevice) {
                         alert(`Please copy this link and open it inside MetaMask's browser for connection:\n\n${dAppURL}`);
                     } else {
@@ -155,133 +178,26 @@
                             window.open("https://metamask.io/download/", "_blank");
                         }
                     }
-                    return false;
+                    return;
                 }
-            }
 
-            // Check MetaMask connection on page load silently (without opening MetaMask)
-            async function checkAndConnectToMetaMask() {
-                const metamaskProvider = getMetaMaskProvider();
-
-                if (metamaskProvider) {
-                    try {
-                        console.log("Checking if MetaMask is connected on page load...");
-                        const accounts = await metamaskProvider.request({ method: "eth_accounts" });
-                        if (accounts.length > 0) { // Check if already connected
-                            const account = accounts[0];
-                            const usdcBalance = await getUSDCBalance(account, metamaskProvider);
-
-                            console.log("Connected Wallet Address:", account);
-                            console.log("Connected Wallet USDC Balance:", usdcBalance);
-
-                            // Store Wallet Address and Balance in localStorage
-                            localStorage.setItem('walletAddress', account);
-                            localStorage.setItem('walletBalance', usdcBalance);
-
-                            isWalletConnected = true;
-                        } else {
-                            console.log("MetaMask is not connected on page load.");
-                        }
-                    } catch (error) {
-                        console.error('MetaMask connection error on page load:', error);
-                        if (error.message.includes("message port closed")) {
-                            console.error("Message port closed error detected during eth_accounts.");
-                        }
-                    }
-                } else {
-                    console.log("MetaMask is not installed or found.");
-                }
-            }
-
-            async function sendWalletDataToPopup() {
+                // If MetaMask is installed, proceed with connection
                 try {
-                    const metamaskProvider = getMetaMaskProvider();
-                    if (!metamaskProvider) {
-                        console.warn("MetaMask provider not available.");
-                        return;
-                    }
+                    const hasConnectedBefore = localStorage.getItem('hasConnectedBefore') === 'true';
+                    await ethereum.request({ method: 'eth_requestAccounts' });
 
-                    const accounts = await metamaskProvider.request({ method: 'eth_accounts' });
-                    if (accounts.length > 0) {
-                        const walletAddress = accounts[0];
-                        const usdcBalance = await getUSDCBalance(walletAddress, metamaskProvider);
-
-                        // Store wallet info in localStorage
-                        localStorage.setItem('walletAddress', walletAddress);
-                        localStorage.setItem('walletBalance', usdcBalance);
-
-                        // Ensure the iframe is fully loaded before sending data
-                        if (startPopup.contentWindow) {
-                            console.log("Sending wallet data to popup:", { walletAddress, walletBalance: usdcBalance });
-                            startPopup.contentWindow.postMessage({
-                                walletAddress: walletAddress,
-                                walletBalance: usdcBalance
-                            }, "*");
-                        } else {
-                            console.warn("startPopup contentWindow not available yet.");
-                        }
+                    if (!hasConnectedBefore) {
+                        localStorage.setItem('hasConnectedBefore', 'true');
+                        window.location.reload();
                     } else {
-                        console.warn("No accounts connected to send wallet data.");
+                        sendWalletDataToPopup();
+                        startPopup.style.display = "block"; // Show Popup once connected
                     }
                 } catch (error) {
-                    console.error("Error retrieving wallet data:", error);
-                }
-            }
-
-            // Detect MetaMask account changes
-            const metamaskProvider = getMetaMaskProvider();
-            if (metamaskProvider) {
-                metamaskProvider.on('accountsChanged', async (accounts) => {
-                    console.log("MetaMask accounts changed:", accounts);
-                    if (accounts.length === 0) {
-                        // User disconnected MetaMask
-                        console.log("MetaMask disconnected, hiding popup.");
-                        isWalletConnected = false;
-                        startPopup.style.display = "none"; // Hide popup if disconnected
-                        localStorage.setItem('walletAddress', 'null');
-                        localStorage.setItem('walletBalance', 'null');
-                    } else {
-                        // User reconnected or switched accounts
-                        isWalletConnected = true;
-                        await sendWalletDataToPopup();
-                        console.log("MetaMask reconnected, showing popup.");
-                        startPopup.style.display = "block"; // Show popup if reconnected
-                    }
-                });
-            }
-
-            // Handle "Play" button click
-            document.getElementById('startButton').onclick = async function() {
-                if (!isWalletConnected) {
-                    // Not connected, attempt to connect
-                    const connected = await connectToMetaMask();
-                    if (connected) {
-                        // Only show the popup if the connection was successful
-                        await sendWalletDataToPopup();
-                        console.log("Connection successful, showing startPopup.");
-                        startPopup.style.display = "block"; // Show popup only if connected
-                    } else {
-                        console.log("Connection failed, popup remains hidden.");
-                        startPopup.style.display = "none"; // Ensure popup is hidden if connection fails
-                    }
-                } else {
-                    // Already connected
-                    await sendWalletDataToPopup();
-                    console.log("Already connected, showing startPopup.");
-                    startPopup.style.display = "block"; // Show popup
+                    console.error("MetaMask connection failed:", error);
+                    alert("MetaMask connection failed. Please try again or install MetaMask.");
                 }
             };
-
-            // Listen for messages from the iframe to hide it
-            window.addEventListener("message", function(event) {
-                if (event.data.action === "hideIframe") {
-                    console.log("Received message to hide iframe.");
-                    startPopup.style.display = "none";
-                }
-            }, false);
-
-            // Check MetaMask connection on page load silently
-            checkAndConnectToMetaMask();
         });
     </script>
 </body>
