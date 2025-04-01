@@ -62,46 +62,18 @@ function startGame(type, betValue) {
     // Start 5-minute timer (300,000 milliseconds)
     const matchDuration = 300000; // 5 minutes in milliseconds
     global.matchStartTime = Date.now(); // Record start time
+    console.log("Match started at: " + global.matchStartTime); // Debug start time
     global.matchTimer = setTimeout(() => {
         // Emit event to server to end the match
         socket.emit('matchEndRequest');
+        console.log("Match timer expired, requesting match end");
     }, matchDuration);
-
-    // Display timer in UI
-    startTimerDisplay(matchDuration);
 }
 
 // Check if nickname is valid alphanumerical
 function validNick() {
     var regex = /^\w*$/;
     return regex.exec(playerNameInput.value) !== null;
-}
-
-// Function to display the countdown timer in the UI
-function startTimerDisplay(duration) {
-    const timerDisplay = document.createElement('div');
-    timerDisplay.id = 'matchTimer';
-    timerDisplay.style.position = 'absolute';
-    timerDisplay.style.top = '10px';
-    timerDisplay.style.left = '10px';
-    timerDisplay.style.color = '#FFFFFF';
-    timerDisplay.style.fontSize = '20px';
-    document.getElementById('gameAreaWrapper').appendChild(timerDisplay);
-
-    function updateTimer() {
-        const elapsed = Date.now() - global.matchStartTime;
-        const remaining = Math.max(0, duration - elapsed);
-        const minutes = Math.floor(remaining / 60000);
-        const seconds = Math.floor((remaining % 60000) / 1000);
-        timerDisplay.textContent = `Time Left: ${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-
-        if (remaining > 0 && global.gameStart) {
-            requestAnimationFrame(updateTimer);
-        } else {
-            timerDisplay.textContent = 'Match Over!';
-        }
-    }
-    updateTimer();
 }
 
 // Removed checkMetaMaskConnection and connectMetaMask functions since index.html handles wallet connection
@@ -274,7 +246,7 @@ function setupSocket(socket) {
     });
 
     // Handle Leaderboard Updates
-    socket.on('leaderboard', (data) => {
+    socket.on('matchOver', (data) => {
         leaderboard = data.leaderboard;
         var status = '<span class="title">Leaderboard</span>';
         for (var i = 0; i < leaderboard.length; i++) {
@@ -339,11 +311,10 @@ function setupSocket(socket) {
                 window.cancelAnimationFrame(global.animLoopHandle);
                 global.animLoopHandle = undefined;
             }
-            document.getElementById('matchTimer')?.remove(); // Remove timer display
         }, 2500);
     });
 
-    socket.on('kick', function (reason) {
+    socket.on('kick', function (.reason) {
         global.gameStart = false;
         global.kicked = true;
         clearTimeout(global.matchTimer); // Stop timer if kicked
@@ -379,7 +350,6 @@ function setupSocket(socket) {
                 window.cancelAnimationFrame(global.animLoopHandle);
                 global.animLoopHandle = undefined;
             }
-            document.getElementById('matchTimer')?.remove(); // Remove timer display
         }, 2500);
     });
 }
@@ -461,6 +431,34 @@ function gameLoop() {
             return obj1.mass - obj2.mass;
         });
         render.drawCells(cellsToDraw, playerConfig, global.toggleMassState, borders, graph);
+
+        // Draw countdown timer on canvas with background for visibility
+        if (global.matchStartTime) {
+            const matchDuration = 300000; // 5 minutes in milliseconds
+            const elapsed = Date.now() - global.matchStartTime;
+            const remaining = Math.max(0, matchDuration - elapsed);
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            const timerText = `Time Left: ${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+
+            // Draw a semi-transparent white background for contrast
+            graph.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            graph.fillRect(5, 5, 150, 30); // Background rectangle
+
+            // Draw timer text in black
+            graph.font = '20px Arial';
+            graph.fillStyle = '#000000'; // Black text
+            graph.fillText(timerText, 10, 25); // Positioned at top-left
+            console.log("Drawing timer: " + timerText); // Debug log
+
+            if (remaining <= 0) {
+                graph.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                graph.fillRect(5, 5, 150, 30);
+                graph.fillStyle = '#000000';
+                graph.fillText('Match Over!', 10, 25);
+                console.log("Match Over displayed");
+            }
+        }
 
         socket.emit('0', window.canvas.target); // playerSendTarget "Heartbeat".
     }
