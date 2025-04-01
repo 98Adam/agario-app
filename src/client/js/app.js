@@ -59,8 +59,8 @@ function startGame(type, betValue) {
     window.canvas.socket = socket;
     global.socket = socket;
 
-    // Start 5-minute timer (300,000 milliseconds)
-    const matchDuration = 300000; // 5 minutes in milliseconds
+    // Start 20-second timer (20,000 milliseconds) for testing
+    const matchDuration = 20000; // 20 seconds in milliseconds
     global.matchStartTime = Date.now(); // Record start time
     console.log("Match started at: " + global.matchStartTime); // Debug start time
     global.matchTimer = setTimeout(() => {
@@ -435,7 +435,7 @@ function gameLoop() {
 
         // Draw countdown timer on canvas with background for visibility
         if (global.matchStartTime) {
-            const matchDuration = 300000; // 5 minutes in milliseconds
+            const matchDuration = 20000; // 20 seconds in milliseconds
             const elapsed = Date.now() - global.matchStartTime;
             const remaining = Math.max(0, matchDuration - elapsed);
             const minutes = Math.floor(remaining / 60000);
@@ -444,20 +444,13 @@ function gameLoop() {
 
             // Draw a semi-transparent white background for contrast
             graph.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            graph.fillRect(55, 5, 150, 30); // Background rectangle
 
             // Draw timer text in black
             graph.font = '20px Arial';
             graph.fillStyle = '#000000'; // Black text
-            graph.fillText(timerText, 80, 25); // Positioned at top-left
+            graph.fillText(timerText, 60, 25); // Positioned slightly to the right
             console.log("Drawing timer: " + timerText); // Debug log
-
-            if (remaining <= 0) {
-                graph.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                graph.fillRect(5, 5, 150, 30);
-                graph.fillStyle = '#000000';
-                graph.fillText('Match Over!', 10, 25);
-                console.log("Match Over displayed");
-            }
         }
 
         socket.emit('0', window.canvas.target); // playerSendTarget "Heartbeat".
