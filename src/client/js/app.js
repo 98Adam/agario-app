@@ -246,7 +246,7 @@ function setupSocket(socket) {
     });
 
     // Handle Leaderboard Updates
-    socket.on('matchOver', (data) => {
+    socket.on('leaderboard', (data) => {
         leaderboard = data.leaderboard;
         var status = '<span class="title">Leaderboard</span>';
         for (var i = 0; i < leaderboard.length; i++) {
@@ -314,7 +314,8 @@ function setupSocket(socket) {
         }, 2500);
     });
 
-    socket.on('kick', function (.reason) {
+    // Fixed syntax error here: removed dot from '.reason'
+    socket.on('kick', function (reason) {
         global.gameStart = false;
         global.kicked = true;
         clearTimeout(global.matchTimer); // Stop timer if kicked
