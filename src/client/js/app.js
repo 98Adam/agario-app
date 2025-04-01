@@ -444,12 +444,11 @@ function gameLoop() {
 
             // Draw a semi-transparent white background for contrast
             graph.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            graph.fillRect(55, 5, 150, 30); // Background rectangle
 
             // Draw timer text in black
             graph.font = '20px Arial';
             graph.fillStyle = '#000000'; // Black text
-            graph.fillText(timerText, 60, 25); // Positioned slightly to the right
+            graph.fillText(timerText, 80, 25); // Positioned slightly to the right
             console.log("Drawing timer: " + timerText); // Debug log
         }
 
