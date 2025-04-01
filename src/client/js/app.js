@@ -76,8 +76,6 @@ function validNick() {
     return regex.exec(playerNameInput.value) !== null;
 }
 
-// Removed checkMetaMaskConnection and connectMetaMask functions since index.html handles wallet connection
-
 window.onload = function () {
     var btn = document.getElementById('startButton');
     var startPopup = document.getElementById('startPopup'); // Reference to StartPopup iframe
@@ -442,14 +440,11 @@ function gameLoop() {
             const seconds = Math.floor((remaining % 60000) / 1000);
             const timerText = `Time Left: ${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
 
-            // Draw a semi-transparent white background for contrast
-            graph.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            graph.fillRect(55, 5, 150, 30); // Background rectangle
 
             // Draw timer text in black
             graph.font = '20px Arial';
             graph.fillStyle = '#000000'; // Black text
-            graph.fillText(timerText, 60, 25); // Positioned slightly to the right
+            graph.fillText(timerText, 80, 25); // Positioned slightly to the right
             console.log("Drawing timer: " + timerText); // Debug log
         }
 
@@ -470,15 +465,6 @@ function showFinalPopup(position, betAmount, wonAmount, gasFee = null) {
         gasFee: gasFee
     }, "*");
 }
-
-// Hide FinalPopup and redirect when "OK" button is pressed
-window.addEventListener("message", function(event) {
-    if (event.data.action === "hideIframe") {
-        document.getElementById("finalPopup").style.display = "none";
-        // Redirect to this game's start page
-        window.location.href = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
-    }
-}, false);
 
 // Handle Screen Resize
 window.addEventListener('resize', resize);

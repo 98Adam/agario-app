@@ -168,30 +168,29 @@ const addPlayer = (socket) => {
     socket.on('matchEndRequest', () => {
         console.log('[INFO] Match end requested by ' + currentPlayer.name);
 
-        // Calculate winners based on current players' mass
-        const activePlayers = map.players.data.map(player => ({
+        // Use the existing leaderboard for winners (top 3)
+        const winners = leaderboard.slice(0, 3).map(player => ({
             id: player.id,
             name: player.name || 'Unnamed',
             mass: player.massTotal
         }));
-        activePlayers.sort((a, b) => b.mass - a.mass); // Sort descending by mass
-        const winners = activePlayers.slice(0, 3); // Top 3 players
+
+        // Find the requesting player's position in the leaderboard
+        const playerPosition = leaderboard.findIndex(p => p.id === currentPlayer.id) + 1 || 0;
 
         // Emit 'matchOver' to all connected clients with results
         io.emit('matchOver', {
             winners: winners,
-            position: activePlayers.findIndex(p => p.id === currentPlayer.id) + 1 || 0, // Player's position (1-based)
+            position: playerPosition, // Player's position (1-based, 0 if not in leaderboard)
             betAmount: currentPlayer.betValue || 0, // Assuming betValue is stored; adjust if needed
             wonAmount: 0, // Placeholder; add winnings logic if applicable
             gasFee: 0 // Placeholder; adjust if applicable
         });
 
-        // Optionally reset game state or disconnect players
-        // For now, we'll just log it and let clients handle the end
-        console.log('[INFO] Match ended. Top winners:', winners);
+        console.log('[INFO] Match ended. Top winners from leaderboard:', winners);
     });
 
-    // Heartbeat function, update everytime.
+    // Heartbeat function, update every time.
     socket.on('0', (target) => {
         currentPlayer.lastHeartbeat = new Date().getTime();
         if (target.x !== currentPlayer.x || target.y !== currentPlayer.y) {
