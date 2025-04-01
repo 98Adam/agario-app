@@ -442,13 +442,10 @@ function gameLoop() {
             const seconds = Math.floor((remaining % 60000) / 1000);
             const timerText = `Time Left: ${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
 
-            // Draw a semi-transparent white background for contrast
-            graph.fillStyle = 'rgba(255, 255, 255, 0.7)';
-
             // Draw timer text in black
             graph.font = '20px Arial';
             graph.fillStyle = '#000000'; // Black text
-            graph.fillText(timerText, 80, 25); // Positioned slightly to the right
+            graph.fillText(timerText, 60, 25); // Positioned slightly to the right
             console.log("Drawing timer: " + timerText); // Debug log
         }
 
@@ -470,10 +467,12 @@ function showFinalPopup(position, betAmount, wonAmount, gasFee = null) {
     }, "*");
 }
 
-// Hide FinalPopup when "OK" button is pressed
+// Hide FinalPopup and redirect when "OK" button is pressed
 window.addEventListener("message", function(event) {
     if (event.data.action === "hideIframe") {
         document.getElementById("finalPopup").style.display = "none";
+        // Redirect to the game page
+        window.location.href = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
     }
 }, false);
 
