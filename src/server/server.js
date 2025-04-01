@@ -45,9 +45,8 @@ io.on('connection', function (socket) {
 
 function generateSpawnpoint() {
     let radius = util.massToRadius(config.defaultPlayerMass);
-    return getPosition(config.newPlayerInitialPosition === 'farthest', radius, map.players.data)
+    return getPosition(config.newPlayerInitialPosition === 'farthest', radius, map.players.data);
 }
-
 
 const addPlayer = (socket) => {
     var currentPlayer = new mapUtils.playerUtils.Player(socket.id);
@@ -70,7 +69,6 @@ const addPlayer = (socket) => {
             io.emit('playerJoin', { name: currentPlayer.name });
             console.log('Total players: ' + map.players.data.length);
         }
-
     });
 
     socket.on('pingcheck', () => {
@@ -123,9 +121,7 @@ const addPlayer = (socket) => {
             currentPlayer.admin = true;
         } else {
             console.log('[ADMIN] ' + currentPlayer.name + ' attempted to log in with incorrect password.');
-
             socket.emit('serverMSG', 'Password incorrect, attempt logged.');
-
             loggingRepositry.logFailedLoginAttempt(currentPlayer.name, currentPlayer.ipAddress)
                 .catch((err) => console.error("Error when attempting to log failed login attempt", err));
         }
@@ -146,16 +142,14 @@ const addPlayer = (socket) => {
                     for (var f = 1; f < data.length; f++) {
                         if (f === data.length) {
                             reason = reason + data[f];
-                        }
-                        else {
+                        } else {
                             reason = reason + data[f] + ' ';
                         }
                     }
                 }
                 if (reason !== '') {
                     console.log('[ADMIN] User ' + player.name + ' kicked successfully by ' + currentPlayer.name + ' for reason ' + reason);
-                }
-                else {
+                } else {
                     console.log('[ADMIN] User ' + player.name + ' kicked successfully by ' + currentPlayer.name);
                 }
                 socket.emit('serverMSG', 'User ' + player.name + ' was kicked by ' + currentPlayer.name);
@@ -168,6 +162,33 @@ const addPlayer = (socket) => {
         if (!worked) {
             socket.emit('serverMSG', 'Could not locate user or user is an admin.');
         }
+    });
+
+    // Handle match end request from client
+    socket.on('matchEndRequest', () => {
+        console.log('[INFO] Match end requested by ' + currentPlayer.name);
+
+        // Calculate winners based on current players' mass
+        const activePlayers = map.players.data.map(player => ({
+            id: player.id,
+            name: player.name || 'Unnamed',
+            mass: player.massTotal
+        }));
+        activePlayers.sort((a, b) => b.mass - a.mass); // Sort descending by mass
+        const winners = activePlayers.slice(0, 3); // Top 3 players
+
+        // Emit 'matchOver' to all connected clients with results
+        io.emit('matchOver', {
+            winners: winners,
+            position: activePlayers.findIndex(p => p.id === currentPlayer.id) + 1 || 0, // Player's position (1-based)
+            betAmount: currentPlayer.betValue || 0, // Assuming betValue is stored; adjust if needed
+            wonAmount: 0, // Placeholder; add winnings logic if applicable
+            gasFee: 0 // Placeholder; adjust if applicable
+        });
+
+        // Optionally reset game state or disconnect players
+        // For now, we'll just log it and let clients handle the end
+        console.log('[INFO] Match ended. Top winners:', winners);
     });
 
     // Heartbeat function, update everytime.
@@ -226,12 +247,11 @@ const tickPlayer = (currentPlayer) => {
             if (cell.mass > mass.mass * 1.1)
                 return true;
         }
-
         return false;
     };
 
     const canEatVirus = (cell, cellCircle, virus) => {
-        return virus.mass < cell.mass && isEntityInsideCircle(virus, cellCircle)
+        return virus.mass < cell.mass && isEntityInsideCircle(virus, cellCircle);
     }
 
     const cellsToSplit = [];
@@ -246,7 +266,7 @@ const tickPlayer = (currentPlayer) => {
 
         if (eatenVirusIndexes.length > 0) {
             cellsToSplit.push(cellIndex);
-            map.viruses.delete(eatenVirusIndexes)
+            map.viruses.delete(eatenVirusIndexes);
         }
 
         let massGained = eatenMassIndexes.reduce((acc, index) => acc + map.massFood.data[index].mass, 0);
@@ -276,7 +296,6 @@ const tickGame = () => {
             map.players.removePlayerByIndex(gotEaten.playerIndex);
         }
     });
-
 };
 
 const calculateLeaderboard = () => {
@@ -323,6 +342,7 @@ const sendLeaderboard = (socket) => {
         leaderboard
     });
 }
+
 const updateSpectator = (socketID) => {
     let playerData = {
         x: config.gameWidth / 2,
