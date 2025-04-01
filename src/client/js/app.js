@@ -58,12 +58,50 @@ function startGame(type, betValue) {
     window.chat.registerFunctions();
     window.canvas.socket = socket;
     global.socket = socket;
+
+    // Start 5-minute timer (300,000 milliseconds)
+    const matchDuration = 300000; // 5 minutes in milliseconds
+    global.matchStartTime = Date.now(); // Record start time
+    global.matchTimer = setTimeout(() => {
+        // Emit event to server to end the match
+        socket.emit('matchEndRequest');
+    }, matchDuration);
+
+    // Display timer in UI
+    startTimerDisplay(matchDuration);
 }
 
 // Check if nickname is valid alphanumerical
 function validNick() {
     var regex = /^\w*$/;
     return regex.exec(playerNameInput.value) !== null;
+}
+
+// Function to display the countdown timer in the UI
+function startTimerDisplay(duration) {
+    const timerDisplay = document.createElement('div');
+    timerDisplay.id = 'matchTimer';
+    timerDisplay.style.position = 'absolute';
+    timerDisplay.style.top = '10px';
+    timerDisplay.style.left = '10px';
+    timerDisplay.style.color = '#FFFFFF';
+    timerDisplay.style.fontSize = '20px';
+    document.getElementById('gameAreaWrapper').appendChild(timerDisplay);
+
+    function updateTimer() {
+        const elapsed = Date.now() - global.matchStartTime;
+        const remaining = Math.max(0, duration - elapsed);
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        timerDisplay.textContent = `Time Left: ${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+
+        if (remaining > 0 && global.gameStart) {
+            requestAnimationFrame(updateTimer);
+        } else {
+            timerDisplay.textContent = 'Match Over!';
+        }
+    }
+    updateTimer();
 }
 
 // Removed checkMetaMaskConnection and connectMetaMask functions since index.html handles wallet connection
@@ -181,6 +219,7 @@ $("#split").click(function () {
 
 function handleDisconnect() {
     socket.close();
+    clearTimeout(global.matchTimer); // Stop timer if disconnected
     if (!global.kicked) {
         render.drawErrorMessage('Disconnected!', graph, global.screen);
     }
@@ -300,18 +339,48 @@ function setupSocket(socket) {
                 window.cancelAnimationFrame(global.animLoopHandle);
                 global.animLoopHandle = undefined;
             }
+            document.getElementById('matchTimer')?.remove(); // Remove timer display
         }, 2500);
     });
 
     socket.on('kick', function (reason) {
         global.gameStart = false;
         global.kicked = true;
+        clearTimeout(global.matchTimer); // Stop timer if kicked
         if (reason !== '') {
             render.drawErrorMessage('You were kicked for: ' + reason, graph, global.screen);
         } else {
             render.drawErrorMessage('You were kicked!', graph, global.screen);
         }
         socket.close();
+    });
+
+    // Handle match end from server
+    socket.on('matchOver', function (data) {
+        global.gameStart = false; // Stop game loop
+        clearTimeout(global.matchTimer); // Clear timer if still active
+
+        // Extract winners from data (assuming server sends top 3)
+        const { winners, position, betAmount, wonAmount, gasFee } = data;
+        let resultMessage = 'Match Over!\n';
+        if (winners.length > 0) resultMessage += `1st: ${winners[0].name} (Mass: ${winners[0].mass})\n`;
+        if (winners.length > 1) resultMessage += `2nd: ${winners[1].name} (Mass: ${winners[1].mass})\n`;
+        if (winners.length > 2) resultMessage += `3rd: ${winners[2].name} (Mass: ${winners[2].mass})\n`;
+        render.drawErrorMessage(resultMessage, graph, global.screen);
+
+        // Show final popup with player-specific results
+        showFinalPopup(position, betAmount, wonAmount, gasFee);
+
+        // Reset UI after delay
+        window.setTimeout(() => {
+            document.getElementById('gameAreaWrapper').style.opacity = 0;
+            document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
+            if (global.animLoopHandle) {
+                window.cancelAnimationFrame(global.animLoopHandle);
+                global.animLoopHandle = undefined;
+            }
+            document.getElementById('matchTimer')?.remove(); // Remove timer display
+        }, 2500);
     });
 }
 
