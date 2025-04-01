@@ -64,9 +64,23 @@ const addPlayer = (socket) => {
         } else {
             console.log('[INFO] Player ' + clientPlayerData.name + ' connected!');
             sockets[socket.id] = socket;
+
+            // Handle duplicate names by appending a discriminator
+            let baseName = clientPlayerData.name || 'Unnamed';
+            let displayName = baseName;
+            let discriminator = 1;
+            const existingNames = map.players.data.map(p => p.displayName || p.name);
+            while (existingNames.includes(displayName)) {
+                displayName = `${baseName}#${discriminator}`;
+                discriminator++;
+            }
+            clientPlayerData.name = displayName; // Update the name with the discriminator
             currentPlayer.clientProvidedData(clientPlayerData);
+            currentPlayer.displayName = displayName; // Store the display name separately
+            currentPlayer.betValue = clientPlayerData.betValue || 0; // Store betValue
+
             map.players.pushNew(currentPlayer);
-            io.emit('playerJoin', { name: currentPlayer.name });
+            io.emit('playerJoin', { name: currentPlayer.displayName });
             console.log('Total players: ' + map.players.data.length);
         }
     });
@@ -86,13 +100,13 @@ const addPlayer = (socket) => {
             width: config.gameWidth,
             height: config.gameHeight
         });
-        console.log('[INFO] User ' + currentPlayer.name + ' has respawned');
+        console.log('[INFO] User ' + currentPlayer.displayName + ' has respawned');
     });
 
     socket.on('disconnect', () => {
         map.players.removePlayerByID(currentPlayer.id);
-        console.log('[INFO] User ' + currentPlayer.name + ' has disconnected');
-        socket.broadcast.emit('playerDisconnect', { name: currentPlayer.name });
+        console.log('[INFO] User ' + currentPlayer.displayName + ' has disconnected');
+        socket.broadcast.emit('playerDisconnect', { name: currentPlayer.displayName });
     });
 
     socket.on('playerChat', (data) => {
@@ -115,14 +129,14 @@ const addPlayer = (socket) => {
     socket.on('pass', async (data) => {
         const password = data[0];
         if (password === config.adminPass) {
-            console.log('[ADMIN] ' + currentPlayer.name + ' just logged in as an admin.');
-            socket.emit('serverMSG', 'Welcome back ' + currentPlayer.name);
-            socket.broadcast.emit('serverMSG', currentPlayer.name + ' just logged in as an admin.');
+            console.log('[ADMIN] ' + currentPlayer.displayName + ' just logged in as an admin.');
+            socket.emit('serverMSG', 'Welcome back ' + currentPlayer.displayName);
+            socket.broadcast.emit('serverMSG', currentPlayer.displayName + ' just logged in as an admin.');
             currentPlayer.admin = true;
         } else {
-            console.log('[ADMIN] ' + currentPlayer.name + ' attempted to log in with incorrect password.');
+            console.log('[ADMIN] ' + currentPlayer.displayName + ' attempted to log in with incorrect password.');
             socket.emit('serverMSG', 'Password incorrect, attempt logged.');
-            loggingRepositry.logFailedLoginAttempt(currentPlayer.name, currentPlayer.ipAddress)
+            loggingRepositry.logFailedLoginAttempt(currentPlayer.displayName, currentPlayer.ipAddress)
                 .catch((err) => console.error("Error when attempting to log failed login attempt", err));
         }
     });
@@ -137,7 +151,7 @@ const addPlayer = (socket) => {
         var worked = false;
         for (let playerIndex in map.players.data) {
             let player = map.players.data[playerIndex];
-            if (player.name === data[0] && !player.admin && !worked) {
+            if (player.displayName === data[0] && !player.admin && !worked) {
                 if (data.length > 1) {
                     for (var f = 1; f < data.length; f++) {
                         if (f === data.length) {
@@ -148,11 +162,11 @@ const addPlayer = (socket) => {
                     }
                 }
                 if (reason !== '') {
-                    console.log('[ADMIN] User ' + player.name + ' kicked successfully by ' + currentPlayer.name + ' for reason ' + reason);
+                    console.log('[ADMIN] User ' + player.displayName + ' kicked successfully by ' + currentPlayer.displayName + ' for reason ' + reason);
                 } else {
-                    console.log('[ADMIN] User ' + player.name + ' kicked successfully by ' + currentPlayer.name);
+                    console.log('[ADMIN] User ' + player.displayName + ' kicked successfully by ' + currentPlayer.displayName);
                 }
-                socket.emit('serverMSG', 'User ' + player.name + ' was kicked by ' + currentPlayer.name);
+                socket.emit('serverMSG', 'User ' + player.displayName + ' was kicked by ' + currentPlayer.displayName);
                 sockets[player.id].emit('kick', reason);
                 sockets[player.id].disconnect();
                 map.players.removePlayerByIndex(playerIndex);
@@ -166,12 +180,12 @@ const addPlayer = (socket) => {
 
     // Handle match end request from client
     socket.on('matchEndRequest', () => {
-        console.log('[INFO] Match end requested by ' + currentPlayer.name);
+        console.log('[INFO] Match end requested by ' + currentPlayer.displayName);
 
         // Use the existing leaderboard for winners (top 3)
         const winners = leaderboard.slice(0, 3).map(player => ({
             id: player.id,
-            name: player.name || 'Unnamed',
+            name: player.displayName || 'Unnamed',
             mass: player.massTotal
         }));
 
@@ -182,7 +196,7 @@ const addPlayer = (socket) => {
         io.emit('matchOver', {
             winners: winners,
             position: playerPosition, // Player's position (1-based, 0 if not in leaderboard)
-            betAmount: currentPlayer.betValue || 0, // Assuming betValue is stored; adjust if needed
+            betAmount: currentPlayer.betValue || 0, // Use the stored betValue
             wonAmount: 0, // Placeholder; add winnings logic if applicable
             gasFee: 0 // Placeholder; adjust if applicable
         });
@@ -290,7 +304,7 @@ const tickGame = () => {
         const playerDied = map.players.removeCell(gotEaten.playerIndex, gotEaten.cellIndex);
         if (playerDied) {
             let playerGotEaten = map.players.data[gotEaten.playerIndex];
-            io.emit('playerDied', { name: playerGotEaten.name }); //TODO: on client it is `playerEatenName` instead of `name`
+            io.emit('playerDied', { name: playerGotEaten.displayName }); // Use displayName
             sockets[playerGotEaten.id].emit('RIP');
             map.players.removePlayerByIndex(gotEaten.playerIndex);
         }

@@ -19,7 +19,7 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
 
-// Listen for messages from the game (e.g., StartPopup)
+// Listen for messages from the game (StartPopup)
 window.addEventListener("message", function(event) {
     const data = event.data;
 
@@ -37,7 +37,7 @@ window.addEventListener("message", function(event) {
         console.log("Received closePopup message from finalPopup");
         const iframe = document.getElementById("finalPopup");
         iframe.style.display = "none"; // Hide the popup
-        // Reload the page to the main URL
+        // Reload the game to the main URL
         window.location.href = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
     }
 });
@@ -104,8 +104,7 @@ window.onload = function () {
             // Hide error message
             document.querySelector('#startMenu .input-error').style.opacity = 0;
 
-            // Wallet connection is handled by index.html's startButton.onclick handler
-            // Simply show the startPopup, which will be triggered after wallet connection
+            // Show startPopup, which will be triggered after wallet connection
             startPopup.style.display = "block";
         } else {
             document.querySelector('#startMenu .input-error').style.opacity = 1;
@@ -227,7 +226,8 @@ function setupSocket(socket) {
         player.target = window.canvas.target;
         global.player = player;
         window.chat.player = player;
-        socket.emit('gotit', player);
+        // Send betValue along with player data
+        socket.emit('gotit', { name: player.name, betValue: global.betValue });
         global.gameStart = true;
         window.chat.addSystemLine('Connected to the game!');
         window.chat.addSystemLine('Type <b>-help</b> for a list of commands.');
