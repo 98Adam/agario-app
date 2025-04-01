@@ -19,7 +19,7 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
 
-// Listen for messages from the game
+// Listen for messages from the game (e.g., StartPopup)
 window.addEventListener("message", function(event) {
     const data = event.data;
 
@@ -32,6 +32,13 @@ window.addEventListener("message", function(event) {
         // Start the game with the selected bet value
         console.log("Selected Amount:", data.betValue);
         startGame('player', data.betValue);  // Pass bet value to startGame
+    } else if (data.action === "closePopup") {
+        // Handle the close popup request from finalPopup.html
+        console.log("Received closePopup message from finalPopup");
+        const iframe = document.getElementById("finalPopup");
+        iframe.style.display = "none"; // Hide the popup
+        // Reload the page to the main URL
+        window.location.href = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
     }
 });
 
@@ -40,6 +47,9 @@ function startGame(type, betValue) {
     global.playerType = type;
 
     console.log("Starting Game with amount:", betValue); // Use betValue as needed
+
+    // Store betValue in global for later use
+    global.betValue = betValue;
 
     // Remaining existing code in startGame...
     global.screen.width = window.innerWidth;
@@ -341,7 +351,6 @@ function setupSocket(socket) {
         // Show final popup with player-specific results
         showFinalPopup(position, betAmount, wonAmount, gasFee);
 
-        // Reset UI after delay
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
             document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
@@ -439,7 +448,6 @@ function gameLoop() {
             const minutes = Math.floor(remaining / 60000);
             const seconds = Math.floor((remaining % 60000) / 1000);
             const timerText = `Time Left: ${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-
 
             // Draw timer text in black
             graph.font = '20px Arial';
