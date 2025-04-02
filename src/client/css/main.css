@@ -260,15 +260,23 @@ div {
     opacity: 0;
 }
 
+/* Ensure #mobile is hidden by default on larger screens */
 @media only screen and (min-width: 1224px) {
     #mobile {
         display: none;
     }
+    #chatbox {
+        display: block; /* Ensure chatbox is visible on larger screens */
+    }
 }
 
+/* Show #mobile and hide #chatbox on smaller screens */
 @media only screen and (max-width: 1224px) {
     #chatbox {
         display: none;
+    }
+    #mobile {
+        display: block; /* Show the mobile buttons on smaller screens */
     }
 }
 
