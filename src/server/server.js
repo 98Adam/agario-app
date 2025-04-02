@@ -25,6 +25,7 @@ let leaderboard = [];
 let leaderboardChanged = false;
 // New array to store all players' final positions (including those who died)
 let allPlayersPositions = [];
+let isMatchActive = false; // Track if a match is currently active
 
 const Vector = SAT.Vector;
 
@@ -66,6 +67,14 @@ const addPlayer = (socket) => {
         } else {
             console.log('[INFO] Player ' + clientPlayerData.name + ' connected!');
             sockets[socket.id] = socket;
+
+            // Reset leaderboard and allPlayersPositions if no match is active (new match starting)
+            if (!isMatchActive && map.players.data.length === 0) {
+                leaderboard = [];
+                allPlayersPositions = [];
+                isMatchActive = true; // Mark the match as active
+                console.log('[INFO] New match started, leaderboard and player positions reset.');
+            }
 
             // Handle duplicate names by appending a discriminator
             let baseName = clientPlayerData.name || 'Player'; // Default to 'Player' if name is empty
@@ -203,26 +212,34 @@ const addPlayer = (socket) => {
     socket.on('matchEndRequest', () => {
         console.log('[INFO] Match end requested by ' + currentPlayer.displayName);
 
-        // Use the stored allPlayersPositions for winners (Top 3, including dead players)
-        const winners = allPlayersPositions.slice(0, 3).map(player => ({
+        // Ensure the leaderboard is up-to-date before ending the match
+        calculateLeaderboard();
+
+        // Use the current leaderboard for winners (Top 3 active players)
+        const winners = leaderboard.slice(0, 3).map(player => ({
             id: player.id,
-            name: player.displayName, // Use displayName directly, which is already set to Player#<number> for unnamed players
-            mass: player.massTotal || 0 // Default to 0 if massTotal is undefined
+            name: player.displayName,
+            mass: player.massTotal || 0
         }));
 
-        // Find the requesting player's position in allPlayersPositions
-        const playerPosition = allPlayersPositions.findIndex(p => p.id === currentPlayer.id) + 1 || 0;
+        // Find the requesting player's position in the current leaderboard
+        const playerPosition = leaderboard.findIndex(p => p.id === currentPlayer.id) + 1 || 0;
 
         // Emit 'matchOver' to all connected clients with results
         io.emit('matchOver', {
             winners: winners,
-            position: playerPosition, // Player's position (1-based, based on all players including dead)
-            betAmount: currentPlayer.betValue || 0, // Use the stored betValue
+            position: playerPosition, // Player's position based on current leaderboard
+            betAmount: currentPlayer.betValue || 0,
             wonAmount: 0, // Placeholder; add winnings logic if applicable
             gasFee: 0 // Placeholder; adjust if applicable
         });
 
-        console.log('[INFO] Match ended. Top winners from allPlayersPositions:', winners);
+        console.log('[INFO] Match ended. Top winners from current leaderboard:', winners);
+
+        // Reset match state
+        isMatchActive = false; // Allow a new match to start with a fresh leaderboard
+        allPlayersPositions = allPlayersPositions.concat(map.players.data); // Store final state for reference (optional)
+        // Optionally clear active players if desired: map.players.data = [];
     });
 
     // Handle movement updates from the client
@@ -321,7 +338,8 @@ const tickGame = () => {
             let playerGotEaten = map.players.data[gotEaten.playerIndex];
             io.emit('playerDied', { name: playerGotEaten.displayName });
 
-            // Calculate the player's position in the leaderboard before removing them
+            // Calculate the player's position in the current leaderboard
+            calculateLeaderboard(); // Ensure leaderboard is up-to-date
             const playerPosition = leaderboard.findIndex(p => p.id === playerGotEaten.id) + 1 || 0;
 
             // Send the position in the RIP event
@@ -333,29 +351,6 @@ const tickGame = () => {
 };
 
 const calculateLeaderboard = () => {
-    // Calculate positions for all players (including those who died) for the final popup
-    const allPlayersSorted = allPlayersPositions.concat(map.players.data).sort((a, b) => {
-        // Primary sort: massTotal (descending)
-        if (b.massTotal !== a.massTotal) {
-            return b.massTotal - a.massTotal;
-        }
-        // Secondary sort: number of cells (ascending)
-        return a.cells.length - b.cells.length;
-    });
-
-    // Update allPlayersPositions with the sorted list (but don't add duplicates)
-    allPlayersPositions = allPlayersSorted.reduce((acc, player) => {
-        if (!acc.some(p => p.id === player.id)) {
-            acc.push({
-                id: player.id,
-                displayName: player.displayName,
-                massTotal: player.massTotal,
-                cells: player.cells
-            });
-        }
-        return acc;
-    }, []);
-
     // Calculate leaderboard for active players only
     const activePlayers = map.players.data.slice().sort((a, b) => {
         // Primary sort: massTotal (descending)
@@ -366,17 +361,22 @@ const calculateLeaderboard = () => {
         return a.cells.length - b.cells.length;
     });
 
-    if (leaderboard.length !== activePlayers.length) {
+    // Update allPlayersPositions with current match players (avoid duplicates)
+    allPlayersPositions = activePlayers.reduce((acc, player) => {
+        if (!acc.some(p => p.id === player.id)) {
+            acc.push({
+                id: player.id,
+                displayName: player.displayName,
+                massTotal: player.massTotal,
+                cells: player.cells
+            });
+        }
+        return acc;
+    }, allPlayersPositions);
+
+    if (leaderboard.length !== activePlayers.length || leaderboard.some((p, i) => p.id !== activePlayers[i].id)) {
         leaderboard = activePlayers;
         leaderboardChanged = true;
-    } else {
-        for (let i = 0; i < leaderboard.length; i++) {
-            if (leaderboard[i].id !== activePlayers[i].id) {
-                leaderboard = activePlayers;
-                leaderboardChanged = true;
-                break;
-            }
-        }
     }
 }
 

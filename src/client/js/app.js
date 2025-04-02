@@ -59,6 +59,14 @@ function startGame(type, betValue) {
     // Reset hasSeenFinalPopup flag for a new game
     global.hasSeenFinalPopup = false;
 
+    // Reset leaderboard and related data for a new match
+    leaderboard = []; // Clear leaderboard for a fresh match
+    users = []; // Reset users list
+    foods = []; // Reset foods list
+    viruses = []; // Reset viruses list
+    fireFood = []; // Reset fireFood list
+    global.matchStartTime = Date.now(); // Reset match start time
+
     // Remaining existing code in startGame...
     global.screen.width = window.innerWidth;
     global.screen.height = window.innerHeight;
@@ -311,14 +319,14 @@ function setupSocket(socket) {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
 
-        // Use the position sent from Server
-        const position = data.position || 0;
+        // Use the current leaderboard position instead of server-sent position
+        const currentPosition = leaderboard.findIndex(p => p.id === player.id) + 1 || data.position || 0;
         const betAmount = global.betValue || 0;
         const wonAmount = global.wonAmount || 0;
         const gasFee = global.gasFee || 0;
 
         // Show the final popup
-        showFinalPopup(position, betAmount, wonAmount, gasFee);
+        showFinalPopup(currentPosition, betAmount, wonAmount, gasFee);
 
         // Set the flag to prevent showing the popup again
         global.hasSeenFinalPopup = true;
@@ -359,7 +367,9 @@ function setupSocket(socket) {
             if (winners.length > 2) resultMessage += `3rd: ${winners[2].name} (Mass: ${winners[2].mass})\n`;
             render.drawErrorMessage(resultMessage, graph, global.screen);
 
-            showFinalPopup(position, betAmount, wonAmount, gasFee);
+            // Use the leaderboard position from the current match
+            const currentPosition = leaderboard.findIndex(p => p.id === player.id) + 1 || position;
+            showFinalPopup(currentPosition, betAmount, wonAmount, gasFee);
 
             global.hasSeenFinalPopup = true;
         }
