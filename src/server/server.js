@@ -318,7 +318,15 @@ const tickGame = () => {
 };
 
 const calculateLeaderboard = () => {
-    const topPlayers = map.players.getTopPlayers();
+    // Sort players by massTotal (descending), and if masses are equal, by number of cells (ascending)
+    const topPlayers = map.players.data.slice().sort((a, b) => {
+        // Primary sort: massTotal (descending)
+        if (b.massTotal !== a.massTotal) {
+            return b.massTotal - a.massTotal;
+        }
+        // Secondary sort: number of cells (ascending)
+        return a.cells.length - b.cells.length;
+    });
 
     if (leaderboard.length !== topPlayers.length) {
         leaderboard = topPlayers;
