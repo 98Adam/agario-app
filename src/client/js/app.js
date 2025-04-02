@@ -37,6 +37,8 @@ window.addEventListener("message", function(event) {
         console.log("Received closePopup message from finalPopup");
         const iframe = document.getElementById("finalPopup");
         iframe.style.display = "none"; // Hide the popup
+        // Hide the game area to prevent the "Match Over!" message from showing
+        document.getElementById('gameAreaWrapper').style.opacity = 0;
         // Reload the game to the main URL
         window.location.href = "https://agario-app-f1a9418e9c2c.herokuapp.com/";
     }

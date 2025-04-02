@@ -186,7 +186,7 @@ const addPlayer = (socket) => {
         const winners = leaderboard.slice(0, 3).map(player => ({
             id: player.id,
             name: player.displayName || 'Unnamed',
-            mass: player.massTotal
+            mass: player.massTotal || 0 // Default to 0 if massTotal is undefined
         }));
 
         // Find the requesting player's position in the leaderboard
