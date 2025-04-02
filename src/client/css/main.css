@@ -53,6 +53,7 @@ div {
     right: 10px;
     font-weight: bold;
     text-align: center;
+    border-radius: 15px; /* Increase border-radius for a more rounded look */
 }
 
 #status .title {
@@ -71,7 +72,7 @@ div {
     background: rgba(22, 22, 22, 0.7);
     bottom: 5px;
     left: 5px;
-    border-radius: 5px;
+    border-radius: 15px; /* Increase border-radius from 5px to 15px for a more rounded look */
     pointer-events: none;
 }
 
@@ -245,7 +246,7 @@ div {
 #startMenu .input-error {
     color: red;
     opacity: 0;
-    font-size : 12px;
+    font-size: 12px;
 }
 
 #startMenuWrapper {
@@ -259,27 +260,27 @@ div {
     opacity: 0;
 }
 
-@media only screen  and (min-width : 1224px) {
-#mobile {
-display: none;
+@media only screen and (min-width: 1224px) {
+    #mobile {
+        display: none;
     }
 }
 
-@media only screen  and (max-width : 1224px) {
-#chatbox {
-display: none;
-        }
+@media only screen and (max-width: 1224px) {
+    #chatbox {
+        display: none;
+    }
 }
 
-input [type="image"]:focus{
- border:none;
- outline: 1px solid transparent;
- border-style: none;
+input[type="image"]:focus {
+    border: none;
+    outline: 1px solid transparent;
+    border-style: none;
 }
 
 *:focus {
- outline: 1px solid transparent;
- border-style: none;
+    outline: 1px solid transparent;
+    border-style: none;
 }
 
 /* Pop-up styles */
