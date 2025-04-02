@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { io } from 'socket.io-client';
 
-// Base URL for API and Socket.IO (use environment variables in production)
+// Base URL for API and Socket.IO (update for new domain if applicable)
 const API_BASE_URL = 'https://rcadya-app-dee7ef0f2cc9.herokuapp.com';
 const WS_BASE_URL = 'https://rcadya-app-dee7ef0f2cc9.herokuapp.com';
 
@@ -30,7 +30,7 @@ let token = getToken();
 
 // Token refresh rate limiting state
 const MAX_REFRESH_ATTEMPTS = 3;
-const REFRESH_COOLDOWN_MS = 60 * 1000; // 1 minute cooldown
+const REFRESH_COOLDOWN_MS = 60 * 1000;
 let refreshAttempts = 0;
 let lastRefreshTime = 0;
 
@@ -42,11 +42,34 @@ const withTimeout = (promise, timeoutMs, errorMessage) => {
     ]);
 };
 
+// Retry utility for wallet requests
+const withRetry = async (fn, maxRetries = 3, delayMs = 1000, errorMessage = 'Operation failed') => {
+    let lastError;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            if (error.message.includes('port closed') || error.code === -32002) {
+                console.warn(`${errorMessage} (attempt ${attempt}/${maxRetries}): ${error.message}. Retrying after ${delayMs}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+                continue;
+            }
+            throw error;
+        }
+    }
+    throw Object.assign(lastError, { userMessage: `${errorMessage} after ${maxRetries} attempts. Please try again.` });
+};
+
 // Check if MetaMask is in a pending state
 async function checkMetaMaskState() {
     try {
-        // Attempt a simple request to see if MetaMask is responsive
-        await window.ethereum.request({ method: 'eth_chainId' });
+        await withRetry(
+            () => window.ethereum.request({ method: 'eth_chainId' }),
+            3,
+            1000,
+            'MetaMask state check failed'
+        );
         return true;
     } catch (error) {
         console.error('MetaMask state check failed:', error);
@@ -61,10 +84,8 @@ async function checkMetaMaskState() {
 
 // Set up MetaMask event listeners to handle disconnects
 function setupMetaMaskListeners(provider) {
-    // Use 'disconnect' instead of 'close' as per MetaMask's deprecation warning
     provider.on('disconnect', (error) => {
         console.warn('MetaMask disconnected:', error);
-        // Reset provider and contract state
         provider = null;
         signer = null;
         contract = null;
@@ -73,11 +94,9 @@ function setupMetaMaskListeners(provider) {
         console.log('User disconnected, token cleared.');
     });
 
-    // Handle account changes
     provider.on('accountsChanged', (accounts) => {
         console.log('MetaMask accounts changed:', accounts);
         if (accounts.length === 0) {
-            // User disconnected their wallet
             provider = null;
             signer = null;
             contract = null;
@@ -87,10 +106,8 @@ function setupMetaMaskListeners(provider) {
         }
     });
 
-    // Handle chain changes
     provider.on('chainChanged', (chainId) => {
         console.log('MetaMask chain changed:', chainId);
-        // Optionally reload the page or reinitialize the contract
         window.location.reload();
     });
 }
@@ -151,23 +168,28 @@ async function initializeContract() {
         console.log('Initializing smart contract...');
         const { address: contractAddress, abi: contractAbi, isMock } = await getSmartContractDetails();
         provider = new ethers.providers.Web3Provider(ethereumProvider);
-        setupMetaMaskListeners(provider); // Set up event listeners
+        setupMetaMaskListeners(provider);
         console.log('Requesting wallet signer...');
         signer = provider.getSigner();
         console.log('Requesting wallet address...');
-        const walletAddress = await withTimeout(
-            signer.getAddress().catch(err => {
-                console.error('Wallet getAddress error:', err);
-                if (err.code === 4001) {
-                    throw new Error('User rejected wallet connection');
-                }
-                if (err.code === -32002) {
-                    throw new Error('Wallet request already pending. Please check your wallet extension.');
-                }
-                throw new Error('Failed to connect to wallet');
-            }),
-            15000,
-            'Wallet address request timed out'
+        const walletAddress = await withRetry(
+            () => withTimeout(
+                signer.getAddress().catch(err => {
+                    console.error('Wallet getAddress error:', err);
+                    if (err.code === 4001) {
+                        throw new Error('User rejected wallet connection');
+                    }
+                    if (err.code === -32002) {
+                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                    }
+                    throw new Error('Failed to connect to wallet');
+                }),
+                15000,
+                'Wallet address request timed out'
+            ),
+            3,
+            1000,
+            'Failed to get wallet address'
         );
         console.log('Connected Wallet Address:', walletAddress);
         contract = new ethers.Contract(contractAddress, contractAbi, signer);
@@ -185,7 +207,7 @@ async function initializeContract() {
     }
 }
 
-// Login function to get authentication token
+// Login function with retry
 async function login() {
     try {
         const ethereumProvider = window.ethereum || window.coinbaseWalletExtension;
@@ -199,22 +221,27 @@ async function login() {
 
         console.log('Starting login process...');
         const provider = new ethers.providers.Web3Provider(ethereumProvider);
-        setupMetaMaskListeners(provider); // Set up event listeners
+        setupMetaMaskListeners(provider);
         const signer = provider.getSigner();
         console.log('Requesting wallet address for login...');
-        const walletAddress = await withTimeout(
-            signer.getAddress().catch(err => {
-                console.error('Wallet getAddress error during login:', err);
-                if (err.code === 4001) {
-                    throw new Error('User rejected wallet connection');
-                }
-                if (err.code === -32002) {
-                    throw new Error('Wallet request already pending. Please check your wallet extension.');
-                }
-                throw new Error('Failed to connect to wallet');
-            }),
-            15000,
-            'Wallet address request timed out during login'
+        const walletAddress = await withRetry(
+            () => withTimeout(
+                signer.getAddress().catch(err => {
+                    console.error('Wallet getAddress error during login:', err);
+                    if (err.code === 4001) {
+                        throw new Error('User rejected wallet connection');
+                    }
+                    if (err.code === -32002) {
+                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                    }
+                    throw new Error('Failed to connect to wallet');
+                }),
+                15000,
+                'Wallet address request timed out during login'
+            ),
+            3,
+            1000,
+            'Failed to get wallet address during login'
         );
         console.log('Wallet Address:', walletAddress);
 
@@ -239,23 +266,34 @@ async function login() {
         const { nonce } = await nonceResponse.json();
         console.log('Nonce received:', nonce);
 
+        // Add a small delay before signing to prevent MetaMask overload
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         // Sign the nonce
         console.log('Requesting wallet to sign the nonce...');
-        const signature = await withTimeout(
-            signer.signMessage(nonce).catch(err => {
-                console.error('Wallet signMessage error:', err);
-                if (err.code === 4001) {
-                    throw new Error('User rejected signature');
-                }
-                if (err.code === -32002) {
-                    throw new Error('Wallet request already pending. Please check your wallet extension.');
-                }
-                throw new Error('Failed to sign message with wallet');
-            }),
-            30000,
-            'Wallet signing timed out'
+        const signature = await withRetry(
+            () => withTimeout(
+                signer.signMessage(nonce).catch(err => {
+                    console.error('Wallet signMessage error:', err);
+                    if (err.code === 4001) {
+                        throw new Error('User rejected signature');
+                    }
+                    if (err.code === -32002) {
+                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                    }
+                    throw new Error('Failed to sign message with wallet');
+                }),
+                30000,
+                'Wallet signing timed out'
+            ),
+            3,
+            1000,
+            'Failed to sign nonce'
         );
         console.log('Nonce signed successfully:', signature);
+
+        // Add a small delay before the login request
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Login to get token
         console.log('Sending login request to backend...');
@@ -289,7 +327,7 @@ async function login() {
     }
 }
 
-// Map contract Game-type enum to string representation (shared with Backend)
+// Map contract Game-type enum to string representation
 function getGameTypeString(gameTypeNumber) {
     const gameTypes = ['MultiPlayer', 'OneVsOne', 'NotOursMultiplayer', 'NotOurs1vs1'];
     return gameTypes[gameTypeNumber] || 'Unknown';
@@ -343,7 +381,7 @@ async function fetchWithTokenRefresh(url, options, maxRetries = 2) {
                 console.error(`Failed to fetch ${url} after ${maxRetries + 1} attempts:`, error);
                 throw error;
             }
-            const delay = Math.pow(2, attempts) * 1000; // Exponential backoff: 2s, 4s, 8s
+            const delay = Math.pow(2, attempts) * 1000;
             console.warn(`Fetch failed for ${url}, retrying after ${delay}ms...`, error.message);
             await new Promise(resolve => setTimeout(resolve, delay));
         }
@@ -376,10 +414,15 @@ async function placeBet(betValue, gameId) {
         }
 
         console.log('Checking game type for gameId:', gameId);
-        const gameTypeNumber = await withTimeout(
-            contract.gameTypes(gameId),
-            10000,
-            'Failed to fetch game type from smart contract: request timed out'
+        const gameTypeNumber = await withRetry(
+            () => withTimeout(
+                contract.gameTypes(gameId),
+                10000,
+                'Failed to fetch game type from smart contract: request timed out'
+            ),
+            3,
+            1000,
+            'Failed to fetch game type'
         );
         if (gameTypeNumber.toString() === '0' && gameId !== 0) {
             throw Object.assign(new Error(`Game ID ${gameId} is not registered in the Smart Contract.`), {
@@ -391,19 +434,28 @@ async function placeBet(betValue, gameId) {
 
         const betValueInMicroUSDC = ethers.utils.parseUnits(betValue.toString(), 6);
         console.log('Placing bet with value (micro-USDC):', betValueInMicroUSDC.toString());
-        const tx = await withTimeout(
-            contract.placeBet(betValueInMicroUSDC, gameId).catch(err => {
-                console.error('Wallet placeBet error:', err);
-                if (err.code === 4001) {
-                    throw new Error('User rejected transaction');
-                }
-                if (err.code === -32002) {
-                    throw new Error('Wallet request already pending. Please check your wallet extension.');
-                }
-                throw new Error('Failed to place bet with wallet');
-            }),
-            60000,
-            'Wallet transaction confirmation timed out'
+
+        // Add a small delay before the transaction to prevent MetaMask overload
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const tx = await withRetry(
+            () => withTimeout(
+                contract.placeBet(betValueInMicroUSDC, gameId).catch(err => {
+                    console.error('Wallet placeBet error:', err);
+                    if (err.code === 4001) {
+                        throw new Error('User rejected transaction');
+                    }
+                    if (err.code === -32002) {
+                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                    }
+                    throw new Error('Failed to place bet with wallet');
+                }),
+                60000,
+                'Wallet transaction confirmation timed out'
+            ),
+            3,
+            1000,
+            'Failed to place bet'
         );
         console.log('Transaction sent:', tx.hash);
 
@@ -502,19 +554,27 @@ async function cancelBet() {
         }
 
         console.log('Canceling bet...');
-        const tx = await withTimeout(
-            contract.cancelBet().catch(err => {
-                console.error('Wallet cancelBet error:', err);
-                if (err.code === 4001) {
-                    throw new Error('User rejected transaction');
-                }
-                if (err.code === -32002) {
-                    throw new Error('Wallet request already pending. Please check your wallet extension.');
-                }
-                throw new Error('Failed to cancel bet with wallet');
-            }),
-            60000,
-            'Wallet transaction confirmation for cancelBet timed out'
+        // Add a small delay before the transaction
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const tx = await withRetry(
+            () => withTimeout(
+                contract.cancelBet().catch(err => {
+                    console.error('Wallet cancelBet error:', err);
+                    if (err.code === 4001) {
+                        throw new Error('User rejected transaction');
+                    }
+                    if (err.code === -32002) {
+                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                    }
+                    throw new Error('Failed to cancel bet with wallet');
+                }),
+                60000,
+                'Wallet transaction confirmation for cancelBet timed out'
+            ),
+            3,
+            1000,
+            'Failed to cancel bet'
         );
         console.log('Transaction sent:', tx.hash);
 
@@ -588,19 +648,27 @@ async function claimWinnings(matchId) {
         }
 
         console.log('Claiming winnings for matchId:', matchId);
-        const tx = await withTimeout(
-            contract.claimWinnings(matchId).catch(err => {
-                console.error('Wallet claimWinnings error:', err);
-                if (err.code === 4001) {
-                    throw new Error('User rejected transaction');
-                }
-                if (err.code === -32002) {
-                    throw new Error('Wallet request already pending. Please check your wallet extension.');
-                }
-                throw new Error('Failed to claim winnings with wallet');
-            }),
-            60000,
-            'Wallet transaction confirmation for claimWinnings timed out'
+        // Add a small delay before the transaction
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const tx = await withRetry(
+            () => withTimeout(
+                contract.claimWinnings(matchId).catch(err => {
+                    console.error('Wallet claimWinnings error:', err);
+                    if (err.code === 4001) {
+                        throw new Error('User rejected transaction');
+                    }
+                    if (err.code === -32002) {
+                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                    }
+                    throw new Error('Failed to claim winnings with wallet');
+                }),
+                60000,
+                'Wallet transaction confirmation for claimWinnings timed out'
+            ),
+            3,
+            1000,
+            'Failed to claim winnings'
         );
         console.log('Transaction sent:', tx.hash);
 
@@ -620,7 +688,7 @@ async function claimWinnings(matchId) {
     }
 }
 
-// Setup WebSocket for real-time updates with reconnection logic and event handling
+// Setup WebSocket for real-time updates
 function setupWebSocket(callbacks) {
     console.log('Setting up WebSocket connection...');
     const socket = io(WS_BASE_URL, {
@@ -714,5 +782,4 @@ function setupWebSocket(callbacks) {
     return socket;
 }
 
-// Export functions for use in other scripts
 export { login, initializeContract, placeBet, cancelBet, claimWinnings, getSmartContractDetails, setupWebSocket };
