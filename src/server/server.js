@@ -18,6 +18,7 @@ const {getPosition} = require("./lib/entityUtils");
 let map = new mapUtils.Map(config);
 
 let sockets = {};
+let spectators = [];
 const INIT_MASS_LOG = util.mathLog(config.defaultPlayerMass, config.slowBase);
 
 let leaderboard = [];
@@ -32,10 +33,15 @@ app.use(express.static(__dirname + '/../client'));
 io.on('connection', function (socket) {
     let type = socket.handshake.query.type;
     console.log('User has connected: ', type);
-    if (type === 'player') {
-        addPlayer(socket);
-    } else {
-        console.log('Unknown user type, not doing anything.');
+    switch (type) {
+        case 'player':
+            addPlayer(socket);
+            break;
+        case 'spectator':
+            addSpectator(socket);
+            break;
+        default:
+            console.log('Unknown user type, not doing anything.');
     }
 });
 
@@ -75,7 +81,7 @@ const addPlayer = (socket) => {
                     displayName = `${baseName}#${discriminator}`;
                 }
             } else {
-                // If player provided a name, only append a discriminator if there's a conflict
+                // If the player provided a name, only append a discriminator if there's a conflict
                 displayName = baseName;
                 const existingNames = map.players.data.map(p => p.displayName || p.name);
                 while (existingNames.includes(displayName)) {
@@ -193,7 +199,6 @@ const addPlayer = (socket) => {
         console.log('[INFO] Match end requested by ' + currentPlayer.displayName);
 
         // Use the stored allPlayersPositions for winners (Top 3, including dead players)
-        const winners = all Figurative language: The winners list should show `Player#1`, `Player#2`, etc., for unnamed players, not `Unnamed`.
         const winners = allPlayersPositions.slice(0, 3).map(player => ({
             id: player.id,
             name: player.displayName, // Use displayName directly, which is already set to Player#<number> for unnamed players
@@ -206,12 +211,21 @@ const addPlayer = (socket) => {
         // Emit 'matchOver' to all connected clients with results
         io.emit('matchOver', {
             winners: winners,
-            position: playerPosition, // Player's position (1-based, based on all players)
+            position: playerPosition, // Player's position (1-based, based on all players including dead)
             betAmount: currentPlayer.betValue || 0, // Use the stored betValue
             wonAmount: 0, // Placeholder; add winnings logic if applicable
             gasFee: 0 // Placeholder; adjust if applicable
         });
+
         console.log('[INFO] Match ended. Top winners from allPlayersPositions:', winners);
+    });
+
+    // Heartbeat function, update every time.
+    socket.on('0', (target) => {
+        // Removed lastHeartbeat update
+        if (target.x !== currentPlayer.x || target.y !== currentPlayer.y) {
+            currentPlayer.target = target;
+        }
     });
 
     socket.on('1', function () {
@@ -230,7 +244,21 @@ const addPlayer = (socket) => {
     });
 }
 
+const addSpectator = (socket) => {
+    socket.on('gotit', function () {
+        sockets[socket.id] = socket;
+        spectators.push(socket.id);
+        io.emit('playerJoin', { name: '' });
+    });
+
+    socket.emit("welcome", {}, {
+        width: config.gameWidth,
+        height: config.gameHeight
+    });
+}
+
 const tickPlayer = (currentPlayer) => {
+    // Removed inactivity check
     currentPlayer.move(config.slowBase, config.gameWidth, config.gameHeight, INIT_MASS_LOG);
 
     const isEntityInsideCircle = (point, circle) => {
@@ -249,7 +277,7 @@ const tickPlayer = (currentPlayer) => {
 
     const canEatVirus = (cell, cellCircle, virus) => {
         return virus.mass < cell.mass && isEntityInsideCircle(virus, cellCircle);
-    };
+    }
 
     const cellsToSplit = [];
     for (let cellIndex = 0; cellIndex < currentPlayer.cells.length; cellIndex++) {
@@ -287,7 +315,7 @@ const tickGame = () => {
 
         const playerDied = map.players.removeCell(gotEaten.playerIndex, gotEaten.cellIndex);
         if (playerDied) {
-            let playerGotEaten = map.players.data[gotEaten.playerIndex];
+            let playerGotEaten = map.players.data
             io.emit('playerDied', { name: playerGotEaten.displayName });
 
             // Calculate the player's position in the leaderboard before removing them
@@ -304,7 +332,7 @@ const tickGame = () => {
 const calculateLeaderboard = () => {
     // Calculate positions for all players (including those who died) for the final popup
     const allPlayersSorted = allPlayersPositions.concat(map.players.data).sort((a, b) => {
-
+      
         // Primary sort: massTotal (descending)
         if (b.massTotal !== a.massTotal) {
             return b.massTotal - a.massTotal;
@@ -327,8 +355,8 @@ const calculateLeaderboard = () => {
     }, []);
 
     // Calculate leaderboard for active players only
+
     const activePlayers = map.players.data.slice().sort((a, b) => {
-      
         // Primary sort: massTotal (descending)
         if (b.massTotal !== a.massTotal) {
             return b.massTotal - a.massTotal;
@@ -361,6 +389,7 @@ const gameloop = () => {
 };
 
 const sendUpdates = () => {
+    spectators.forEach(updateSpectator);
     map.enumerateWhatPlayersSee(function (playerData, visiblePlayers, visibleFood, visibleMass, visibleViruses) {
         sockets[playerData.id].emit('serverTellPlayerMove', playerData, visiblePlayers, visibleFood, visibleMass, visibleViruses);
         if (leaderboardChanged) {
@@ -376,6 +405,22 @@ const sendLeaderboard = (socket) => {
         players: map.players.data.length,
         leaderboard
     });
+}
+
+const updateSpectator = (socketID) => {
+    let playerData = {
+        x: config.gameWidth / 2,
+        y: config.gameHeight / 2,
+        cells: [],
+        massTotal: 0,
+        hue: 100,
+        id: socketID,
+        name: ''
+    };
+    sockets[socketID].emit('serverTellPlayerMove', playerData, map.players.data, map.food.data, map.massFood.data, map.viruses.data);
+    if (leaderboardChanged) {
+        sendLeaderboard(sockets[socketID]);
+    }
 }
 
 setInterval(tickGame, 1000 / 60);
