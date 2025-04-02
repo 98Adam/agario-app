@@ -17,10 +17,10 @@ html, body, canvas {
 }
 
 div {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -khtml-user-select: none;
-    -ms-user-select: none;
+    -webkit-user-select: none; /* webkit (safari, chrome) browsers */
+    -moz-user-select: none; /* mozilla browsers */
+    -khtml-user-select: none; /* webkit (konqueror) browsers */
+    -ms-user-select: none; /* IE10+ */
 }
 
 #split {
@@ -30,17 +30,17 @@ div {
     width: 100px;
     height: 100px;
     padding: 5px;
-    background-color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.3); /* Translucent white background */
     color: #000000;
     border: 1px solid #000000;
     text-align: center;
     cursor: pointer;
     font-weight: bold;
-    border-radius: 10px;
+    border-radius: 50%; /* Makes the button circular */
 }
 
 #split:hover {
-    background-color: #f0f0f0;
+    background-color: rgba(255, 255, 255, 0.5); /* Slightly less translucent on hover */
 }
 
 #feed {
@@ -50,17 +50,17 @@ div {
     width: 100px;
     height: 100px;
     padding: 5px;
-    background-color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.3); /* Translucent white background */
     color: #000000;
     border: 1px solid #000000;
     text-align: center;
     cursor: pointer;
     font-weight: bold;
-    border-radius: 10px;
+    border-radius: 50%; /* Makes the button circular */
 }
 
 #feed:hover {
-    background-color: #f0f0f0;
+    background-color: rgba(255, 255, 255, 0.5); /* Slightly less translucent on hover */
 }
 
 #status {
@@ -73,7 +73,7 @@ div {
     right: 10px;
     font-weight: bold;
     text-align: center;
-    border-radius: 15px;
+    border-radius: 15px; /* Increase border-radius for a more rounded look */
 }
 
 #status .title {
@@ -108,19 +108,19 @@ div {
 .chatbox .chat-list li {
     padding: 2px;
     margin: 3px;
-    color: white;
+    color: white; /* Set default chat text color to white for all messages */
 }
 
 .chatbox .chat-list li.me b {
-    color: #ea6153;
+    color: #ea6153; /* Keep the sender name red for the current player */
 }
 
 .chatbox .chat-list li.friend b {
-    color: #477FFA;
+    color: #477FFA; /* Keep the sender name blue for other players */
 }
 
 .chatbox .chat-list li.system {
-    color: white;
+    color: white; /* Set system messages to white */
     font-style: italic;
 }
 
@@ -146,6 +146,8 @@ div {
     width: 350px;
     padding: 20px;
     border-radius: 25px;
+    -moz-border-radius: 25px;
+    -webkit-border-radius: 25px;
     background-color: white;
     box-sizing: border-box;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
@@ -166,6 +168,8 @@ div {
     transition: box-shadow 0.3s, border 0.3s;
     box-sizing: border-box;
     border-radius: 15px;
+    -moz-border-radius: 15px;
+    -webkit-border-radius: 15px;
     margin-bottom: 10px;
     outline: none;
 }
@@ -192,6 +196,8 @@ div {
     -webkit-box-shadow: inset 0 -2px #DE3163;
     box-shadow: inset 0 -2px #DE3163;
     border-radius: 15px;
+    -moz-border-radius: 15px;
+    -webkit-border-radius: 15px;
     margin-bottom: 10px;
 }
 
@@ -220,10 +226,12 @@ div {
     -webkit-box-shadow: inset 0 -2px #DE3163;
     box-shadow: inset 0 -2px #DE3163;
     border-radius: 15px;
+    -moz-border-radius: 15px;
+    -webkit-border-radius: 15px;
     margin-bottom: 10px;
 }
 
-#settingsButton:active, #settingsButton:hover {
+#settingsButton:active #settingsButton:hover {
     top: 1px;
     background: #DE3163;
     outline: none;
@@ -272,21 +280,23 @@ div {
     opacity: 0;
 }
 
+/* Ensure #mobile is hidden by default on larger screens */
 @media only screen and (min-width: 1224px) {
     #mobile {
         display: none;
     }
     #chatbox {
-        display: block;
+        display: block; /* Ensure chatbox is visible on larger screens */
     }
 }
 
+/* Show #mobile and hide #chatbox on smaller screens */
 @media only screen and (max-width: 1224px) {
     #chatbox {
         display: none;
     }
     #mobile {
-        display: block;
+        display: block; /* Show the mobile buttons on smaller screens */
     }
 }
 
@@ -295,6 +305,7 @@ div {
     border-style: none;
 }
 
+/* Pop-up styles */
 .popup-overlay {
     position: fixed;
     top: 0;
@@ -308,7 +319,7 @@ div {
     visibility: hidden;
     opacity: 0;
     transition: visibility 0s, opacity 0.5s;
-    z-index: 3;
+    z-index: 3; /* Ensures pop-up is above other elements */
 }
 
 .popup-content {
