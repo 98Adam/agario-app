@@ -63,7 +63,6 @@
     <script src="js/app.js"></script>
 
     <script>
-    
         const USDC_CONTRACT_ADDRESS = '0xa0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
         const USDC_ABI = [{
             "constant": true,
@@ -125,7 +124,7 @@
         }
 
         // Check and connect to MetaMask on "Play" button click
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", async function() {
             // Implement both iframes to make them ready for display
             const startPopup = document.getElementById("startPopup");
             const finalPopup = document.getElementById("finalPopup");
@@ -134,6 +133,22 @@
 
             let lastWalletBalance = null;
             let hasSentData = false;
+
+            // Store authentication state in localStorage
+            const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
+
+            // Attempt to reconnect to MetaMask on page load for mobile users
+            if (isMobileDevice && wasAuthenticated) {
+                const { connected, balance, account } = await connectToMetaMask();
+                if (connected) {
+                    console.log("Reconnected to MetaMask on page load:", account, balance);
+                    // Update the stored state
+                    localStorage.setItem('wasAuthenticated', 'true');
+                } else {
+                    console.log("Failed to reconnect to MetaMask on page load");
+                    localStorage.setItem('wasAuthenticated', 'false');
+                }
+            }
 
             async function sendWalletDataToPopup() {
                 const { connected, balance, account } = await connectToMetaMask();
@@ -147,6 +162,10 @@
                         walletBalance: balance
                     }, "*");
                     hasSentData = true;
+                    // Store authentication state
+                    localStorage.setItem('wasAuthenticated', 'true');
+                } else {
+                    localStorage.setItem('wasAuthenticated', 'false');
                 }
             }
 
