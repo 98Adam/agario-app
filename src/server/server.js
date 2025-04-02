@@ -201,7 +201,7 @@ const addPlayer = (socket) => {
         // Use the stored allPlayersPositions for winners (Top 3, including dead players)
         const winners = allPlayersPositions.slice(0, 3).map(player => ({
             id: player.id,
-            name: player.displayName, // Use displayName directly, which is already set to Player#<number> for unnamed players
+            name: player.displayName || 'Unnamed',
             mass: player.massTotal || 0 // Default to 0 if massTotal is undefined
         }));
 
@@ -211,7 +211,7 @@ const addPlayer = (socket) => {
         // Emit 'matchOver' to all connected clients with results
         io.emit('matchOver', {
             winners: winners,
-            position: playerPosition, // Player's position (1-based, based on all players including dead)
+            position: playerPosition, // Player's position (1-based)
             betAmount: currentPlayer.betValue || 0, // Use the stored betValue
             wonAmount: 0, // Placeholder; add winnings logic if applicable
             gasFee: 0 // Placeholder; adjust if applicable
@@ -315,7 +315,7 @@ const tickGame = () => {
 
         const playerDied = map.players.removeCell(gotEaten.playerIndex, gotEaten.cellIndex);
         if (playerDied) {
-            let playerGotEaten = map.players.data
+            let playerGotEaten = map.players.data[gotEaten.playerIndex];
             io.emit('playerDied', { name: playerGotEaten.displayName });
 
             // Calculate the player's position in the leaderboard before removing them
@@ -332,7 +332,6 @@ const tickGame = () => {
 const calculateLeaderboard = () => {
     // Calculate positions for all players (including those who died) for the final popup
     const allPlayersSorted = allPlayersPositions.concat(map.players.data).sort((a, b) => {
-      
         // Primary sort: massTotal (descending)
         if (b.massTotal !== a.massTotal) {
             return b.massTotal - a.massTotal;
@@ -355,7 +354,6 @@ const calculateLeaderboard = () => {
     }, []);
 
     // Calculate leaderboard for active players only
-
     const activePlayers = map.players.data.slice().sort((a, b) => {
         // Primary sort: massTotal (descending)
         if (b.massTotal !== a.massTotal) {
