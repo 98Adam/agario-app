@@ -87,18 +87,19 @@ div {
 .chatbox .chat-list li {
     padding: 2px;
     margin: 3px;
+    color: crimson; /* Set default chat text color to crimson for all messages */
 }
 
 .chatbox .chat-list li.me b {
-    color: #ea6153;
+    color: #ea6153; /* Keep the sender name red for the current player */
 }
 
 .chatbox .chat-list li.friend b {
-    color: #2ecc71;
+    color: #2ecc71; /* Keep the sender name green for other players */
 }
 
 .chatbox .chat-list li.system {
-    color: #9b59b6;
+    color: crimson; /* Change system messages from purple to crimson */
     font-style: italic;
 }
 
@@ -261,7 +262,7 @@ div {
 @media only screen  and (min-width : 1224px) {
 #mobile {
 display: none;
-	}
+    }
 }
 
 @media only screen  and (max-width : 1224px) {
