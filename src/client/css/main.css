@@ -25,10 +25,10 @@ div {
 
 #split {
     position: absolute;
-    bottom: 10px;
-    left: 10px;
-    width: 70px; /* Reduced from 100px */
-    height: 70px; /* Reduced from 100px */
+    bottom: 20px; /* Increased from 10px to 20px */
+    left: 20px; /* Increased from 10px to 20px */
+    width: 70px;
+    height: 70px;
     padding: 5px;
     background-color: rgba(255, 255, 255, 0.3); /* Translucent white background */
     backdrop-filter: blur(5px); /* Adds blur effect */
@@ -47,10 +47,10 @@ div {
 
 #feed {
     position: absolute;
-    bottom: 10px;
-    right: 10px;
-    width: 70px; /* Reduced from 100px */
-    height: 70px; /* Reduced from 100px */
+    bottom: 20px; /* Increased from 10px to 20px */
+    right: 20px; /* Increased from 10px to 20px */
+    width: 70px;
+    height: 70px;
     padding: 5px;
     background-color: rgba(255, 255, 255, 0.3); /* Translucent white background */
     backdrop-filter: blur(5px); /* Adds blur effect */
