@@ -19,6 +19,9 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
 
+// Initialize flag to track if the player has seen the final popup
+global.hasSeenFinalPopup = false;
+
 // Listen for messages from the game (StartPopup)
 window.addEventListener("message", function(event) {
     const data = event.data;
@@ -52,6 +55,9 @@ function startGame(type, betValue) {
 
     // Store betValue in global for later use
     global.betValue = betValue;
+
+    // Reset the hasSeenFinalPopup flag for a new game
+    global.hasSeenFinalPopup = false;
 
     // Remaining existing code in startGame...
     global.screen.width = window.innerWidth;
@@ -301,18 +307,21 @@ function setupSocket(socket) {
     });
 
     // Player Death Handling
-    socket.on('RIP', function () {
+    socket.on('RIP', function (data) {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
 
-        // Retrieve Game Data for finalPopup
-        const position = global.finalPosition || 0; // Replace with position from leaderboard
-        const betAmount = global.betValue || 0; // Player's selected bet amount at game start
-        const wonAmount = global.wonAmount || 0; // Amount won, based on game results
-        const gasFee = global.gasFee || 0; // Gas fee, if applicable
+        // Use the position sent from the server
+        const position = data.position || 0;
+        const betAmount = global.betValue || 0;
+        const wonAmount = global.wonAmount || 0;
+        const gasFee = global.gasFee || 0;
 
-        // Show FinalPopup with Match Results
+        // Show the final popup
         showFinalPopup(position, betAmount, wonAmount, gasFee);
+
+        // Set the flag to prevent showing the popup again
+        global.hasSeenFinalPopup = true;
 
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
@@ -324,7 +333,6 @@ function setupSocket(socket) {
         }, 2500);
     });
 
-    // Fixed syntax error here: removed dot from '.reason'
     socket.on('kick', function (reason) {
         global.gameStart = false;
         global.kicked = true;
@@ -339,19 +347,22 @@ function setupSocket(socket) {
 
     // Handle match end from server
     socket.on('matchOver', function (data) {
-        global.gameStart = false; // Stop game loop
-        clearTimeout(global.matchTimer); // Clear timer if still active
+        global.gameStart = false;
+        clearTimeout(global.matchTimer);
 
-        // Extract winners from data (assuming server sends top 3)
-        const { winners, position, betAmount, wonAmount, gasFee } = data;
-        let resultMessage = 'Match Over!\n';
-        if (winners.length > 0) resultMessage += `1st: ${winners[0].name} (Mass: ${winners[0].mass})\n`;
-        if (winners.length > 1) resultMessage += `2nd: ${winners[1].name} (Mass: ${winners[1].mass})\n`;
-        if (winners.length > 2) resultMessage += `3rd: ${winners[2].name} (Mass: ${winners[2].mass})\n`;
-        render.drawErrorMessage(resultMessage, graph, global.screen);
+        // Only show the popup if the player hasn't already seen it
+        if (!global.hasSeenFinalPopup) {
+            const { winners, position, betAmount, wonAmount, gasFee } = data;
+            let resultMessage = 'Match Over!\n';
+            if (winners.length > 0) resultMessage += `1st: ${winners[0].name} (Mass: ${winners[0].mass})\n`;
+            if (winners.length > 1) resultMessage += `2nd: ${winners[1].name} (Mass: ${winners[1].mass})\n`;
+            if (winners.length > 2) resultMessage += `3rd: ${winners[2].name} (Mass: ${winners[2].mass})\n`;
+            render.drawErrorMessage(resultMessage, graph, global.screen);
 
-        // Show final popup with player-specific results
-        showFinalPopup(position, betAmount, wonAmount, gasFee);
+            showFinalPopup(position, betAmount, wonAmount, gasFee);
+
+            global.hasSeenFinalPopup = true;
+        }
 
         window.setTimeout(() => {
             document.getElementById('gameAreaWrapper').style.opacity = 0;
