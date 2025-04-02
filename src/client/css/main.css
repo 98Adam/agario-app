@@ -87,7 +87,7 @@ div {
 .chatbox .chat-list li {
     padding: 2px;
     margin: 3px;
-    color: crimson; /* Set default chat text color to crimson for all messages */
+    color: white; /* Set default chat text color to white for all messages */
 }
 
 .chatbox .chat-list li.me b {
@@ -99,7 +99,7 @@ div {
 }
 
 .chatbox .chat-list li.system {
-    color: crimson; /* Change system messages from purple to crimson */
+    color: white; /* Set system messages to white */
     font-style: italic;
 }
 
