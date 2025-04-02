@@ -225,9 +225,8 @@ const addPlayer = (socket) => {
         console.log('[INFO] Match ended. Top winners from allPlayersPositions:', winners);
     });
 
-    // Heartbeat function, update every time.
+    // Handle movement updates from the client
     socket.on('0', (target) => {
-        // Removed lastHeartbeat update
         if (target.x !== currentPlayer.x || target.y !== currentPlayer.y) {
             currentPlayer.target = target;
         }
@@ -263,7 +262,6 @@ const addSpectator = (socket) => {
 }
 
 const tickPlayer = (currentPlayer) => {
-    // Removed inactivity check
     currentPlayer.move(config.slowBase, config.gameWidth, config.gameHeight, INIT_MASS_LOG);
 
     const isEntityInsideCircle = (point, circle) => {
