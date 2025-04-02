@@ -72,7 +72,7 @@ div {
     background: rgba(22, 22, 22, 0.7);
     bottom: 5px;
     left: 5px;
-    border-radius: 15px; /* Increase border-radius from 5px to 15px for a more rounded look */
+    border-radius: 15px;
     pointer-events: none;
 }
 
@@ -96,7 +96,7 @@ div {
 }
 
 .chatbox .chat-list li.friend b {
-    color: #2ecc71; /* Keep the sender name green for other players */
+    color: #477FFA; /* Keep the sender name blue for other players */
 }
 
 .chatbox .chat-list li.system {
