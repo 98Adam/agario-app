@@ -70,10 +70,11 @@ const addPlayer = (socket) => {
             // Handle duplicate names by appending a discriminator
             let baseName = clientPlayerData.name || 'Player'; // Default to 'Player' if name is empty
             let displayName;
-            let discriminator = 1;
+            let discriminator;
 
             // If the name is empty or falsy, start with "Player#1"
             if (!clientPlayerData.name) {
+                discriminator = 1; // Start at 1 for unnamed players
                 displayName = `${baseName}#${discriminator}`; // Start with "Player#1"
                 const existingNames = map.players.data.map(p => p.displayName || p.name);
                 while (existingNames.includes(displayName)) {
@@ -84,9 +85,13 @@ const addPlayer = (socket) => {
                 // If the player provided a name, only append a discriminator if there's a conflict
                 displayName = baseName;
                 const existingNames = map.players.data.map(p => p.displayName || p.name);
-                while (existingNames.includes(displayName)) {
+                if (existingNames.includes(displayName)) {
+                    discriminator = 2; // Start at 2 for named players
                     displayName = `${baseName}#${discriminator}`;
-                    discriminator++;
+                    while (existingNames.includes(displayName)) {
+                        discriminator++;
+                        displayName = `${baseName}#${discriminator}`;
+                    }
                 }
             }
 
@@ -201,7 +206,7 @@ const addPlayer = (socket) => {
         // Use the stored allPlayersPositions for winners (Top 3, including dead players)
         const winners = allPlayersPositions.slice(0, 3).map(player => ({
             id: player.id,
-            name: player.displayName || 'Unnamed',
+            name: player.displayName, // Use displayName directly, which is already set to Player#<number> for unnamed players
             mass: player.massTotal || 0 // Default to 0 if massTotal is undefined
         }));
 
@@ -211,7 +216,7 @@ const addPlayer = (socket) => {
         // Emit 'matchOver' to all connected clients with results
         io.emit('matchOver', {
             winners: winners,
-            position: playerPosition, // Player's position (1-based)
+            position: playerPosition, // Player's position (1-based, based on all players including dead)
             betAmount: currentPlayer.betValue || 0, // Use the stored betValue
             wonAmount: 0, // Placeholder; add winnings logic if applicable
             gasFee: 0 // Placeholder; adjust if applicable
