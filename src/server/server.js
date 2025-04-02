@@ -182,7 +182,7 @@ const addPlayer = (socket) => {
     socket.on('matchEndRequest', () => {
         console.log('[INFO] Match end requested by ' + currentPlayer.displayName);
 
-        // Use the existing leaderboard for winners (top 3)
+        // Use the existing leaderboard for winners (Top 3)
         const winners = leaderboard.slice(0, 3).map(player => ({
             id: player.id,
             name: player.displayName || 'Unnamed',
@@ -206,7 +206,7 @@ const addPlayer = (socket) => {
 
     // Heartbeat function, update every time.
     socket.on('0', (target) => {
-        currentPlayer.lastHeartbeat = new Date().getTime();
+        // Removed lastHeartbeat update
         if (target.x !== currentPlayer.x || target.y !== currentPlayer.y) {
             currentPlayer.target = target;
         }
@@ -242,11 +242,7 @@ const addSpectator = (socket) => {
 }
 
 const tickPlayer = (currentPlayer) => {
-    if (currentPlayer.lastHeartbeat < new Date().getTime() - config.maxHeartbeatInterval) {
-        sockets[currentPlayer.id].emit('kick', 'Last heartbeat received over ' + config.maxHeartbeatInterval + ' ago.');
-        sockets[currentPlayer.id].disconnect();
-    }
-
+    // Removed inactivity check
     currentPlayer.move(config.slowBase, config.gameWidth, config.gameHeight, INIT_MASS_LOG);
 
     const isEntityInsideCircle = (point, circle) => {

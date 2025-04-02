@@ -19,7 +19,7 @@ if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
 
-// Initialize flag to track if the player has seen the final popup
+// Initialize flag to track if the player has seen the Final Popup
 global.hasSeenFinalPopup = false;
 
 // Listen for messages from the game (StartPopup)
@@ -56,7 +56,7 @@ function startGame(type, betValue) {
     // Store betValue in global for later use
     global.betValue = betValue;
 
-    // Reset the hasSeenFinalPopup flag for a new game
+    // Reset hasSeenFinalPopup flag for a new game
     global.hasSeenFinalPopup = false;
 
     // Remaining existing code in startGame...
@@ -311,7 +311,7 @@ function setupSocket(socket) {
         global.gameStart = false;
         render.drawErrorMessage('You died!', graph, global.screen);
 
-        // Use the position sent from the server
+        // Use the position sent from Server
         const position = data.position || 0;
         const betAmount = global.betValue || 0;
         const wonAmount = global.wonAmount || 0;
@@ -345,7 +345,7 @@ function setupSocket(socket) {
         socket.close();
     });
 
-    // Handle match end from server
+    // Handle match end from Server
     socket.on('matchOver', function (data) {
         global.gameStart = false;
         clearTimeout(global.matchTimer);
@@ -453,7 +453,7 @@ function gameLoop() {
         });
         render.drawCells(cellsToDraw, playerConfig, global.toggleMassState, borders, graph);
 
-        // Draw countdown timer on canvas with background for visibility
+        // Draw Countdown Timer
         if (global.matchStartTime) {
             const matchDuration = 20000; // 20 seconds in milliseconds
             const elapsed = Date.now() - global.matchStartTime;
