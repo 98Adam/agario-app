@@ -17,10 +17,10 @@ html, body, canvas {
 }
 
 div {
-    -webkit-user-select: none; /* webkit (safari, chrome) browsers */
-    -moz-user-select: none; /* mozilla browsers */
-    -khtml-user-select: none; /* webkit (konqueror) browsers */
-    -ms-user-select: none; /* IE10+ */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -khtml-user-select: none;
+    -ms-user-select: none;
 }
 
 #split {
@@ -30,7 +30,17 @@ div {
     width: 100px;
     height: 100px;
     padding: 5px;
-    border: none;
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #000000;
+    text-align: center;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 10px;
+}
+
+#split:hover {
+    background-color: #f0f0f0;
 }
 
 #feed {
@@ -40,7 +50,17 @@ div {
     width: 100px;
     height: 100px;
     padding: 5px;
-    border: none;
+    background-color: #ffffff;
+    color: #000000;
+    border: 1px solid #000000;
+    text-align: center;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 10px;
+}
+
+#feed:hover {
+    background-color: #f0f0f0;
 }
 
 #status {
@@ -53,7 +73,7 @@ div {
     right: 10px;
     font-weight: bold;
     text-align: center;
-    border-radius: 15px; /* Increase border-radius for a more rounded look */
+    border-radius: 15px;
 }
 
 #status .title {
@@ -88,19 +108,19 @@ div {
 .chatbox .chat-list li {
     padding: 2px;
     margin: 3px;
-    color: white; /* Set default chat text color to white for all messages */
+    color: white;
 }
 
 .chatbox .chat-list li.me b {
-    color: #ea6153; /* Keep the sender name red for the current player */
+    color: #ea6153;
 }
 
 .chatbox .chat-list li.friend b {
-    color: #477FFA; /* Keep the sender name blue for other players */
+    color: #477FFA;
 }
 
 .chatbox .chat-list li.system {
-    color: white; /* Set system messages to white */
+    color: white;
     font-style: italic;
 }
 
@@ -126,8 +146,6 @@ div {
     width: 350px;
     padding: 20px;
     border-radius: 25px;
-    -moz-border-radius: 25px;
-    -webkit-border-radius: 25px;
     background-color: white;
     box-sizing: border-box;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
@@ -148,8 +166,6 @@ div {
     transition: box-shadow 0.3s, border 0.3s;
     box-sizing: border-box;
     border-radius: 15px;
-    -moz-border-radius: 15px;
-    -webkit-border-radius: 15px;
     margin-bottom: 10px;
     outline: none;
 }
@@ -176,8 +192,6 @@ div {
     -webkit-box-shadow: inset 0 -2px #DE3163;
     box-shadow: inset 0 -2px #DE3163;
     border-radius: 15px;
-    -moz-border-radius: 15px;
-    -webkit-border-radius: 15px;
     margin-bottom: 10px;
 }
 
@@ -206,8 +220,6 @@ div {
     -webkit-box-shadow: inset 0 -2px #DE3163;
     box-shadow: inset 0 -2px #DE3163;
     border-radius: 15px;
-    -moz-border-radius: 15px;
-    -webkit-border-radius: 15px;
     margin-bottom: 10px;
 }
 
@@ -260,30 +272,22 @@ div {
     opacity: 0;
 }
 
-/* Ensure #mobile is hidden by default on larger screens */
 @media only screen and (min-width: 1224px) {
     #mobile {
         display: none;
     }
     #chatbox {
-        display: block; /* Ensure chatbox is visible on larger screens */
+        display: block;
     }
 }
 
-/* Show #mobile and hide #chatbox on smaller screens */
 @media only screen and (max-width: 1224px) {
     #chatbox {
         display: none;
     }
     #mobile {
-        display: block; /* Show the mobile buttons on smaller screens */
+        display: block;
     }
-}
-
-input[type="image"]:focus {
-    border: none;
-    outline: 1px solid transparent;
-    border-style: none;
 }
 
 *:focus {
@@ -291,7 +295,6 @@ input[type="image"]:focus {
     border-style: none;
 }
 
-/* Pop-up styles */
 .popup-overlay {
     position: fixed;
     top: 0;
@@ -305,7 +308,7 @@ input[type="image"]:focus {
     visibility: hidden;
     opacity: 0;
     transition: visibility 0s, opacity 0.5s;
-    z-index: 3; /* Ensures pop-up is above other elements */
+    z-index: 3;
 }
 
 .popup-content {
