@@ -304,8 +304,14 @@ const tickGame = () => {
         const playerDied = map.players.removeCell(gotEaten.playerIndex, gotEaten.cellIndex);
         if (playerDied) {
             let playerGotEaten = map.players.data[gotEaten.playerIndex];
-            io.emit('playerDied', { name: playerGotEaten.displayName }); // Use displayName
-            sockets[playerGotEaten.id].emit('RIP');
+            io.emit('playerDied', { name: playerGotEaten.displayName });
+
+            // Calculate the player's position in the leaderboard before removing them
+            const playerPosition = leaderboard.findIndex(p => p.id === playerGotEaten.id) + 1 || 0;
+
+            // Send the position in the RIP event
+            sockets[playerGotEaten.id].emit('RIP', { position: playerPosition });
+
             map.players.removePlayerByIndex(gotEaten.playerIndex);
         }
     });
