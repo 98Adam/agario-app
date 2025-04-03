@@ -61,31 +61,30 @@ const withRetry = async (fn, maxRetries = 3, delayMs = 1000, errorMessage = 'Ope
     throw Object.assign(lastError, { userMessage: `${errorMessage} after ${maxRetries} attempts. Please try again.` });
 };
 
-// Debounce utility to prevent rapid wallet requests
-const debounce = (fn, delay) => {
-    let timeoutId;
-    return (...args) => {
-        return new Promise((resolve, reject) => {
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-            timeoutId = setTimeout(async () => {
-                try {
-                    const result = await fn(...args);
-                    resolve(result);
-                } catch (error) {
-                    reject(error);
-                }
-            }, delay);
-        });
-    };
+// Rate limiting utility to prevent rapid wallet requests
+let lastWalletRequestTime = 0;
+const MIN_WALLET_REQUEST_INTERVAL = 2000; // 2 seconds between wallet requests
+const withRateLimit = async (fn, errorMessage = 'Too many wallet requests') => {
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastWalletRequestTime;
+    if (timeSinceLastRequest < MIN_WALLET_REQUEST_INTERVAL) {
+        const delay = MIN_WALLET_REQUEST_INTERVAL - timeSinceLastRequest;
+        console.warn(`${errorMessage}: Waiting ${delay}ms to respect rate limit...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    lastWalletRequestTime = Date.now();
+
+    return await fn();
 };
 
 // Check if MetaMask is in a pending state
 async function checkMetaMaskState() {
     try {
         await withRetry(
-            () => window.ethereum.request({ method: 'eth_chainId' }),
+            () => withRateLimit(
+                () => window.ethereum.request({ method: 'eth_chainId' }),
+                'MetaMask state check rate limited'
+            ),
             3,
             1000,
             'MetaMask state check failed'
@@ -98,24 +97,34 @@ async function checkMetaMaskState() {
                 userMessage: 'MetaMask is busy. Please open MetaMask, complete or cancel any pending requests, and try again.'
             });
         }
-        return false;
+        throw error;
     }
 }
 
-// Clear pending MetaMask requests (if possible)
-async function clearPendingMetaMaskRequests() {
+// Attempt to reset MetaMask state if the port closes
+async function resetMetaMaskState() {
     try {
-        // Attempt to get the current chain ID to ensure MetaMask is responsive
-        await window.ethereum.request({ method: 'eth_chainId' });
-        console.log('No pending requests detected or cleared.');
-    } catch (error) {
-        if (error.code === -32002) {
-            console.warn('Pending MetaMask request detected. Please resolve it in the MetaMask extension.');
-            throw Object.assign(new Error('Pending MetaMask request detected.'), {
-                userMessage: 'A pending request was detected in MetaMask. Please open MetaMask, complete or cancel the pending request, and try again.'
-            });
+        console.log('Attempting to reset MetaMask state...');
+        // Disconnect and reconnect to the provider
+        if (provider) {
+            provider.removeAllListeners();
+            provider = null;
         }
-        console.error('Error checking for pending requests:', error);
+        if (signer) {
+            signer = null;
+        }
+        if (contract) {
+            contract = null;
+        }
+        // Reinitialize the provider
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        setupMetaMaskListeners(provider);
+        console.log('MetaMask state reset successfully.');
+    } catch (error) {
+        console.error('Failed to reset MetaMask state:', error);
+        throw Object.assign(new Error('Failed to reset MetaMask state.'), {
+            userMessage: 'Unable to reset wallet connection. Please refresh the page and try again.'
+        });
     }
 }
 
@@ -199,7 +208,6 @@ async function initializeContract() {
             });
         }
         console.log('Checking wallet state before initializing contract...');
-        await clearPendingMetaMaskRequests();
         await checkMetaMaskState();
 
         console.log('Initializing smart contract...');
@@ -210,19 +218,22 @@ async function initializeContract() {
         signer = provider.getSigner();
         console.log('Requesting wallet address...');
         const walletAddress = await withRetry(
-            () => withTimeout(
-                signer.getAddress().catch(err => {
-                    console.error('Wallet getAddress error:', err);
-                    if (err.code === 4001) {
-                        throw new Error('User rejected wallet connection');
-                    }
-                    if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
-                    }
-                    throw new Error('Failed to connect to wallet');
-                }),
-                15000,
-                'Wallet address request timed out'
+            () => withRateLimit(
+                () => withTimeout(
+                    signer.getAddress().catch(err => {
+                        console.error('Wallet getAddress error:', err);
+                        if (err.code === 4001) {
+                            throw new Error('User rejected wallet connection');
+                        }
+                        if (err.code === -32002) {
+                            throw new Error('Wallet request already pending. Please check your MetaMask extension.');
+                        }
+                        throw new Error('Failed to connect to wallet');
+                    }),
+                    15000,
+                    'Wallet address request timed out'
+                ),
+                'Wallet address request rate limited'
             ),
             3,
             1000,
@@ -238,14 +249,20 @@ async function initializeContract() {
         return contract;
     } catch (error) {
         console.error('Error initializing Smart Contract:', error);
+        if (error.message.includes('port closed')) {
+            await resetMetaMaskState();
+            throw Object.assign(error, {
+                userMessage: 'Wallet connection failed due to a communication error. Please try again.'
+            });
+        }
         throw Object.assign(error, {
             userMessage: error.message.includes('User rejected') ? 'You need to connect your wallet to proceed.' : 'Failed to initialize contract. Please try again.'
         });
     }
 }
 
-// Login function with debouncing
-const debouncedLogin = debounce(async () => {
+// Login function with rate limiting
+async function login() {
     try {
         if (!window.ethereum) {
             throw Object.assign(new Error('MetaMask is not installed.'), {
@@ -253,7 +270,6 @@ const debouncedLogin = debounce(async () => {
             });
         }
         console.log('Checking wallet state before login...');
-        await clearPendingMetaMaskRequests();
         await checkMetaMaskState();
 
         console.log('Starting login process...');
@@ -262,19 +278,22 @@ const debouncedLogin = debounce(async () => {
         const signer = provider.getSigner();
         console.log('Requesting wallet address for login...');
         const walletAddress = await withRetry(
-            () => withTimeout(
-                signer.getAddress().catch(err => {
-                    console.error('Wallet getAddress error during login:', err);
-                    if (err.code === 4001) {
-                        throw new Error('User rejected wallet connection');
-                    }
-                    if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
-                    }
-                    throw new Error('Failed to connect to wallet');
-                }),
-                15000,
-                'Wallet address request timed out during login'
+            () => withRateLimit(
+                () => withTimeout(
+                    signer.getAddress().catch(err => {
+                        console.error('Wallet getAddress error during login:', err);
+                        if (err.code === 4001) {
+                            throw new Error('User rejected wallet connection');
+                        }
+                        if (err.code === -32002) {
+                            throw new Error('Wallet request already pending. Please check your MetaMask extension.');
+                        }
+                        throw new Error('Failed to connect to wallet');
+                    }),
+                    15000,
+                    'Wallet address request timed out during login'
+                ),
+                'Wallet address request rate limited during login'
             ),
             3,
             1000,
@@ -303,34 +322,31 @@ const debouncedLogin = debounce(async () => {
         const { nonce } = await nonceResponse.json();
         console.log('Nonce received:', nonce);
 
-        // Add a small delay before signing
-        await new Promise(resolve => setTimeout(resolve, 500));
-
         // Sign the nonce
         console.log('Requesting wallet to sign the nonce...');
         const signature = await withRetry(
-            () => withTimeout(
-                signer.signMessage(nonce).catch(err => {
-                    console.error('Wallet signMessage error:', err);
-                    if (err.code === 4001) {
-                        throw new Error('User rejected signature');
-                    }
-                    if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
-                    }
-                    throw new Error('Failed to sign message with wallet');
-                }),
-                30000,
-                'Wallet signing timed out'
+            () => withRateLimit(
+                () => withTimeout(
+                    signer.signMessage(nonce).catch(err => {
+                        console.error('Wallet signMessage error:', err);
+                        if (err.code === 4001) {
+                            throw new Error('User rejected signature');
+                        }
+                        if (err.code === -32002) {
+                            throw new Error('Wallet request already pending. Please check your MetaMask extension.');
+                        }
+                        throw new Error('Failed to sign message with wallet');
+                    }),
+                    30000,
+                    'Wallet signing timed out'
+                ),
+                'Wallet signing request rate limited'
             ),
             3,
             1000,
             'Failed to sign nonce'
         );
         console.log('Nonce signed successfully:', signature);
-
-        // Add a small delay before the login request
-        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Login to get token
         console.log('Sending login request to backend...');
@@ -358,15 +374,16 @@ const debouncedLogin = debounce(async () => {
         return token;
     } catch (error) {
         console.error('Login error:', error);
+        if (error.message.includes('port closed')) {
+            await resetMetaMaskState();
+            throw Object.assign(error, {
+                userMessage: 'Wallet connection failed due to a communication error. Please try again.'
+            });
+        }
         throw Object.assign(error, {
             userMessage: error.message.includes('User rejected') ? 'You need to sign the message to log in.' : error.message.includes('pending') ? error.userMessage : 'Failed to log in. Please try again.'
         });
     }
-}, 1000);
-
-// Wrapper for debounced login
-async function login() {
-    return debouncedLogin();
 }
 
 // Map contract Game-type enum to string representation
@@ -431,8 +448,8 @@ async function fetchWithTokenRefresh(url, options, maxRetries = 2) {
     throw lastError;
 }
 
-// Place a bet on GamePool Smart Contract with debouncing
-const debouncedPlaceBet = debounce(async (betValue, gameId) => {
+// Place a bet on GamePool Smart Contract with rate limiting
+async function placeBet(betValue, gameId) {
     try {
         if (!token) {
             throw Object.assign(new Error('No authentication token available. Please login first.'), {
@@ -457,10 +474,13 @@ const debouncedPlaceBet = debounce(async (betValue, gameId) => {
 
         console.log('Checking game type for gameId:', gameId);
         const gameTypeNumber = await withRetry(
-            () => withTimeout(
-                contract.gameTypes(gameId),
-                10000,
-                'Failed to fetch game type from smart contract: request timed out'
+            () => withRateLimit(
+                () => withTimeout(
+                    contract.gameTypes(gameId),
+                    10000,
+                    'Failed to fetch game type from smart contract: request timed out'
+                ),
+                'Game type request rate limited'
             ),
             3,
             1000,
@@ -477,23 +497,23 @@ const debouncedPlaceBet = debounce(async (betValue, gameId) => {
         const betValueInMicroUSDC = ethers.utils.parseUnits(betValue.toString(), 6);
         console.log('Placing bet with value (micro-USDC):', betValueInMicroUSDC.toString());
 
-        // Add a small delay before the transaction
-        await new Promise(resolve => setTimeout(resolve, 500));
-
         const tx = await withRetry(
-            () => withTimeout(
-                contract.placeBet(betValueInMicroUSDC, gameId).catch(err => {
-                    console.error('Wallet placeBet error:', err);
-                    if (err.code === 4001) {
-                        throw new Error('User rejected transaction');
-                    }
-                    if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
-                    }
-                    throw new Error('Failed to place bet with wallet');
-                }),
-                60000,
-                'Wallet transaction confirmation timed out'
+            () => withRateLimit(
+                () => withTimeout(
+                    contract.placeBet(betValueInMicroUSDC, gameId).catch(err => {
+                        console.error('Wallet placeBet error:', err);
+                        if (err.code === 4001) {
+                            throw new Error('User rejected transaction');
+                        }
+                        if (err.code === -32002) {
+                            throw new Error('Wallet request already pending. Please check your MetaMask extension.');
+                        }
+                        throw new Error('Failed to place bet with wallet');
+                    }),
+                    60000,
+                    'Wallet transaction confirmation timed out'
+                ),
+                'Place bet request rate limited'
             ),
             3,
             1000,
@@ -577,19 +597,20 @@ const debouncedPlaceBet = debounce(async (betValue, gameId) => {
         return { txHash: tx.hash, matchId };
     } catch (error) {
         console.error('Error placing amount:', error);
+        if (error.message.includes('port closed')) {
+            await resetMetaMaskState();
+            throw Object.assign(error, {
+                userMessage: 'Wallet transaction failed due to a communication error. Please try again.'
+            });
+        }
         throw Object.assign(error, {
             userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to place your amount.' : error.message.includes('pending') ? error.userMessage : 'Failed to place amount. Please try again.'
         });
     }
-}, 1000);
-
-// Wrapper for debounced placeBet
-async function placeBet(betValue, gameId) {
-    return debouncedPlaceBet(betValue, gameId);
 }
 
-// Cancel a bet with debouncing
-const debouncedCancelBet = debounce(async () => {
+// Cancel a bet with rate limiting
+async function cancelBet() {
     try {
         if (!token) {
             throw Object.assign(new Error('No authentication token available. Please login first.'), {
@@ -601,22 +622,23 @@ const debouncedCancelBet = debounce(async () => {
         }
 
         console.log('Canceling bet...');
-        await new Promise(resolve => setTimeout(resolve, 500));
-
         const tx = await withRetry(
-            () => withTimeout(
-                contract.cancelBet().catch(err => {
-                    console.error('Wallet cancelBet error:', err);
-                    if (err.code === 4001) {
-                        throw new Error('User rejected transaction');
-                    }
-                    if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
-                    }
-                    throw new Error('Failed to cancel bet with wallet');
-                }),
-                60000,
-                'Wallet transaction confirmation for cancelBet timed out'
+            () => withRateLimit(
+                () => withTimeout(
+                    contract.cancelBet().catch(err => {
+                        console.error('Wallet cancelBet error:', err);
+                        if (err.code === 4001) {
+                            throw new Error('User rejected transaction');
+                        }
+                        if (err.code === -32002) {
+                            throw new Error('Wallet request already pending. Please check your MetaMask extension.');
+                        }
+                        throw new Error('Failed to cancel bet with wallet');
+                    }),
+                    60000,
+                    'Wallet transaction confirmation for cancelBet timed out'
+                ),
+                'Cancel bet request rate limited'
             ),
             3,
             1000,
@@ -634,19 +656,20 @@ const debouncedCancelBet = debounce(async () => {
         return tx.hash;
     } catch (error) {
         console.error('Error canceling amount:', error);
+        if (error.message.includes('port closed')) {
+            await resetMetaMaskState();
+            throw Object.assign(error, {
+                userMessage: 'Wallet transaction failed due to a communication error. Please try again.'
+            });
+        }
         throw Object.assign(error, {
             userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to cancel your amount.' : error.message.includes('pending') ? error.userMessage : 'Failed to cancel amount. Please try again.'
         });
     }
-}, 1000);
-
-// Wrapper for debounced cancelBet
-async function cancelBet() {
-    return debouncedCancelBet();
 }
 
-// Claim winnings from the Smart Contract with debouncing
-const debouncedClaimWinnings = debounce(async (matchId) => {
+// Claim winnings from the Smart Contract with rate limiting
+async function claimWinnings(matchId) {
     try {
         if (!token) {
             throw Object.assign(new Error('No authentication token available. Please login first.'), {
@@ -699,22 +722,23 @@ const debouncedClaimWinnings = debounce(async (matchId) => {
         }
 
         console.log('Claiming winnings for matchId:', matchId);
-        await new Promise(resolve => setTimeout(resolve, 500));
-
         const tx = await withRetry(
-            () => withTimeout(
-                contract.claimWinnings(matchId).catch(err => {
-                    console.error('Wallet claimWinnings error:', err);
-                    if (err.code === 4001) {
-                        throw new Error('User rejected transaction');
-                    }
-                    if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
-                    }
-                    throw new Error('Failed to claim winnings with wallet');
-                }),
-                60000,
-                'Wallet transaction confirmation for claimWinnings timed out'
+            () => withRateLimit(
+                () => withTimeout(
+                    contract.claimWinnings(matchId).catch(err => {
+                        console.error('Wallet claimWinnings error:', err);
+                        if (err.code === 4001) {
+                            throw new Error('User rejected transaction');
+                        }
+                        if (err.code === -32002) {
+                            throw new Error('Wallet request already pending. Please check your MetaMask extension.');
+                        }
+                        throw new Error('Failed to claim winnings with wallet');
+                    }),
+                    60000,
+                    'Wallet transaction confirmation for claimWinnings timed out'
+                ),
+                'Claim winnings request rate limited'
             ),
             3,
             1000,
@@ -732,15 +756,16 @@ const debouncedClaimWinnings = debounce(async (matchId) => {
         return tx.hash;
     } catch (error) {
         console.error('Error claiming winnings:', error);
+        if (error.message.includes('port closed')) {
+            await resetMetaMaskState();
+            throw Object.assign(error, {
+                userMessage: 'Wallet transaction failed due to a communication error. Please try again.'
+            });
+        }
         throw Object.assign(error, {
             userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to claim your winnings.' : error.message.includes('pending') ? error.userMessage : 'Failed to claim winnings. Please try again.'
         });
     }
-}, 1000);
-
-// Wrapper for debounced claimWinnings
-async function claimWinnings(matchId) {
-    return debouncedClaimWinnings(matchId);
 }
 
 // Setup WebSocket for real-time updates
