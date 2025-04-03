@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { io } from 'socket.io-client';
 
-// Base URL for API and Socket.IO (update for new domain if applicable)
+// Base URL for API and Socket.IO
 const API_BASE_URL = 'https://rcadya-app-dee7ef0f2cc9.herokuapp.com';
 const WS_BASE_URL = 'https://rcadya-app-dee7ef0f2cc9.herokuapp.com';
 
@@ -61,6 +61,26 @@ const withRetry = async (fn, maxRetries = 3, delayMs = 1000, errorMessage = 'Ope
     throw Object.assign(lastError, { userMessage: `${errorMessage} after ${maxRetries} attempts. Please try again.` });
 };
 
+// Debounce utility to prevent rapid wallet requests
+const debounce = (fn, delay) => {
+    let timeoutId;
+    return (...args) => {
+        return new Promise((resolve, reject) => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+            timeoutId = setTimeout(async () => {
+                try {
+                    const result = await fn(...args);
+                    resolve(result);
+                } catch (error) {
+                    reject(error);
+                }
+            }, delay);
+        });
+    };
+};
+
 // Check if MetaMask is in a pending state
 async function checkMetaMaskState() {
     try {
@@ -75,10 +95,27 @@ async function checkMetaMaskState() {
         console.error('MetaMask state check failed:', error);
         if (error.code === -32002) {
             throw Object.assign(new Error('MetaMask request already pending. Please check your MetaMask extension.'), {
-                userMessage: 'MetaMask is busy. Please complete or cancel any pending requests in the MetaMask extension.'
+                userMessage: 'MetaMask is busy. Please open MetaMask, complete or cancel any pending requests, and try again.'
             });
         }
         return false;
+    }
+}
+
+// Clear pending MetaMask requests (if possible)
+async function clearPendingMetaMaskRequests() {
+    try {
+        // Attempt to get the current chain ID to ensure MetaMask is responsive
+        await window.ethereum.request({ method: 'eth_chainId' });
+        console.log('No pending requests detected or cleared.');
+    } catch (error) {
+        if (error.code === -32002) {
+            console.warn('Pending MetaMask request detected. Please resolve it in the MetaMask extension.');
+            throw Object.assign(new Error('Pending MetaMask request detected.'), {
+                userMessage: 'A pending request was detected in MetaMask. Please open MetaMask, complete or cancel the pending request, and try again.'
+            });
+        }
+        console.error('Error checking for pending requests:', error);
     }
 }
 
@@ -156,18 +193,18 @@ async function getSmartContractDetails() {
 let provider, signer, contract, isMockContract = false;
 async function initializeContract() {
     try {
-        const ethereumProvider = window.ethereum || window.coinbaseWalletExtension;
-        if (!ethereumProvider) {
-            throw Object.assign(new Error('No wallet provider installed.'), {
-                userMessage: 'Please install MetaMask or Coinbase Wallet to use this feature.'
+        if (!window.ethereum) {
+            throw Object.assign(new Error('MetaMask is not installed.'), {
+                userMessage: 'Please install MetaMask to use this feature.'
             });
         }
         console.log('Checking wallet state before initializing contract...');
+        await clearPendingMetaMaskRequests();
         await checkMetaMaskState();
 
         console.log('Initializing smart contract...');
         const { address: contractAddress, abi: contractAbi, isMock } = await getSmartContractDetails();
-        provider = new ethers.providers.Web3Provider(ethereumProvider);
+        provider = new ethers.providers.Web3Provider(window.ethereum);
         setupMetaMaskListeners(provider);
         console.log('Requesting wallet signer...');
         signer = provider.getSigner();
@@ -180,7 +217,7 @@ async function initializeContract() {
                         throw new Error('User rejected wallet connection');
                     }
                     if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
                     }
                     throw new Error('Failed to connect to wallet');
                 }),
@@ -207,20 +244,20 @@ async function initializeContract() {
     }
 }
 
-// Login function with retry
-async function login() {
+// Login function with debouncing
+const debouncedLogin = debounce(async () => {
     try {
-        const ethereumProvider = window.ethereum || window.coinbaseWalletExtension;
-        if (!ethereumProvider) {
-            throw Object.assign(new Error('No wallet provider installed.'), {
-                userMessage: 'Please install MetaMask or Coinbase Wallet to log in.'
+        if (!window.ethereum) {
+            throw Object.assign(new Error('MetaMask is not installed.'), {
+                userMessage: 'Please install MetaMask to log in.'
             });
         }
         console.log('Checking wallet state before login...');
+        await clearPendingMetaMaskRequests();
         await checkMetaMaskState();
 
         console.log('Starting login process...');
-        const provider = new ethers.providers.Web3Provider(ethereumProvider);
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
         setupMetaMaskListeners(provider);
         const signer = provider.getSigner();
         console.log('Requesting wallet address for login...');
@@ -232,7 +269,7 @@ async function login() {
                         throw new Error('User rejected wallet connection');
                     }
                     if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
                     }
                     throw new Error('Failed to connect to wallet');
                 }),
@@ -266,7 +303,7 @@ async function login() {
         const { nonce } = await nonceResponse.json();
         console.log('Nonce received:', nonce);
 
-        // Add a small delay before signing to prevent MetaMask overload
+        // Add a small delay before signing
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // Sign the nonce
@@ -279,7 +316,7 @@ async function login() {
                         throw new Error('User rejected signature');
                     }
                     if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
                     }
                     throw new Error('Failed to sign message with wallet');
                 }),
@@ -322,9 +359,14 @@ async function login() {
     } catch (error) {
         console.error('Login error:', error);
         throw Object.assign(error, {
-            userMessage: error.message.includes('User rejected') ? 'You need to sign the message to log in.' : 'Failed to log in. Please try again.'
+            userMessage: error.message.includes('User rejected') ? 'You need to sign the message to log in.' : error.message.includes('pending') ? error.userMessage : 'Failed to log in. Please try again.'
         });
     }
+}, 1000);
+
+// Wrapper for debounced login
+async function login() {
+    return debouncedLogin();
 }
 
 // Map contract Game-type enum to string representation
@@ -389,8 +431,8 @@ async function fetchWithTokenRefresh(url, options, maxRetries = 2) {
     throw lastError;
 }
 
-// Place a bet on GamePool Smart Contract
-async function placeBet(betValue, gameId) {
+// Place a bet on GamePool Smart Contract with debouncing
+const debouncedPlaceBet = debounce(async (betValue, gameId) => {
     try {
         if (!token) {
             throw Object.assign(new Error('No authentication token available. Please login first.'), {
@@ -435,7 +477,7 @@ async function placeBet(betValue, gameId) {
         const betValueInMicroUSDC = ethers.utils.parseUnits(betValue.toString(), 6);
         console.log('Placing bet with value (micro-USDC):', betValueInMicroUSDC.toString());
 
-        // Add a small delay before the transaction to prevent MetaMask overload
+        // Add a small delay before the transaction
         await new Promise(resolve => setTimeout(resolve, 500));
 
         const tx = await withRetry(
@@ -446,7 +488,7 @@ async function placeBet(betValue, gameId) {
                         throw new Error('User rejected transaction');
                     }
                     if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
                     }
                     throw new Error('Failed to place bet with wallet');
                 }),
@@ -536,13 +578,18 @@ async function placeBet(betValue, gameId) {
     } catch (error) {
         console.error('Error placing amount:', error);
         throw Object.assign(error, {
-            userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to place your amount.' : 'Failed to place amount. Please try again.'
+            userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to place your amount.' : error.message.includes('pending') ? error.userMessage : 'Failed to place amount. Please try again.'
         });
     }
+}, 1000);
+
+// Wrapper for debounced placeBet
+async function placeBet(betValue, gameId) {
+    return debouncedPlaceBet(betValue, gameId);
 }
 
-// Cancel a bet
-async function cancelBet() {
+// Cancel a bet with debouncing
+const debouncedCancelBet = debounce(async () => {
     try {
         if (!token) {
             throw Object.assign(new Error('No authentication token available. Please login first.'), {
@@ -554,7 +601,6 @@ async function cancelBet() {
         }
 
         console.log('Canceling bet...');
-        // Add a small delay before the transaction
         await new Promise(resolve => setTimeout(resolve, 500));
 
         const tx = await withRetry(
@@ -565,7 +611,7 @@ async function cancelBet() {
                         throw new Error('User rejected transaction');
                     }
                     if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
                     }
                     throw new Error('Failed to cancel bet with wallet');
                 }),
@@ -589,13 +635,18 @@ async function cancelBet() {
     } catch (error) {
         console.error('Error canceling amount:', error);
         throw Object.assign(error, {
-            userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to cancel your amount.' : 'Failed to cancel amount. Please try again.'
+            userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to cancel your amount.' : error.message.includes('pending') ? error.userMessage : 'Failed to cancel amount. Please try again.'
         });
     }
+}, 1000);
+
+// Wrapper for debounced cancelBet
+async function cancelBet() {
+    return debouncedCancelBet();
 }
 
-// Claim winnings from the Smart Contract
-async function claimWinnings(matchId) {
+// Claim winnings from the Smart Contract with debouncing
+const debouncedClaimWinnings = debounce(async (matchId) => {
     try {
         if (!token) {
             throw Object.assign(new Error('No authentication token available. Please login first.'), {
@@ -648,7 +699,6 @@ async function claimWinnings(matchId) {
         }
 
         console.log('Claiming winnings for matchId:', matchId);
-        // Add a small delay before the transaction
         await new Promise(resolve => setTimeout(resolve, 500));
 
         const tx = await withRetry(
@@ -659,7 +709,7 @@ async function claimWinnings(matchId) {
                         throw new Error('User rejected transaction');
                     }
                     if (err.code === -32002) {
-                        throw new Error('Wallet request already pending. Please check your wallet extension.');
+                        throw new Error('Wallet request already pending. Please check your MetaMask extension.');
                     }
                     throw new Error('Failed to claim winnings with wallet');
                 }),
@@ -683,9 +733,14 @@ async function claimWinnings(matchId) {
     } catch (error) {
         console.error('Error claiming winnings:', error);
         throw Object.assign(error, {
-            userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to claim your winnings.' : 'Failed to claim winnings. Please try again.'
+            userMessage: error.message.includes('User rejected') ? 'You need to confirm the transaction to claim your winnings.' : error.message.includes('pending') ? error.userMessage : 'Failed to claim winnings. Please try again.'
         });
     }
+}, 1000);
+
+// Wrapper for debounced claimWinnings
+async function claimWinnings(matchId) {
+    return debouncedClaimWinnings(matchId);
 }
 
 // Setup WebSocket for real-time updates
