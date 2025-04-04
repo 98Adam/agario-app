@@ -105,6 +105,7 @@
             }
 
             try {
+                // Check for pending requests
                 let accounts = await provider.request({ method: "eth_accounts" });
                 if (!accounts.length) {
                     console.log("No accounts connected, requesting access...");
@@ -113,7 +114,6 @@
                 if (accounts.length > 0) {
                     const balance = await getUSDCBalance(accounts[0], provider);
                     console.log("MetaMask connected:", accounts[0], "Balance:", balance, "USDC");
-                    await new Promise(resolve => setTimeout(resolve, 1000));
                     return { connected: true, balance: parseFloat(balance) || 0, account: accounts[0] };
                 }
                 return { connected: false, balance: 0 };
@@ -128,15 +128,6 @@
             }
         }
 
-        // Function to get query parameters
-        function getQueryParams() {
-            const params = new URLSearchParams(window.location.search);
-            return {
-                walletAddress: params.get('walletAddress'),
-                walletBalance: params.get('walletBalance')
-            };
-        }
-
         document.addEventListener("DOMContentLoaded", async function() {
             const startPopup = document.getElementById("startPopup");
             const finalPopup = document.getElementById("finalPopup");
@@ -145,7 +136,6 @@
 
             let lastWalletBalance = null;
             let hasSentData = false;
-            let isIframeReady = false;
 
             const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
 
@@ -181,17 +171,18 @@
                 });
             }
 
-            async function sendWalletDataToPopup(walletData) {
+            async function sendWalletDataToPopup() {
                 try {
-                    if (walletData.connected && walletData.balance !== lastWalletBalance) {
+                    const { connected, balance, account } = await connectToMetaMask();
+                    if (connected && balance !== lastWalletBalance) {
                         hasSentData = false;
-                        lastWalletBalance = walletData.balance;
+                        lastWalletBalance = balance;
                     }
-                    if (walletData.connected && !hasSentData) {
-                        console.log("Sending wallet data to StartPopup:", walletData.account, walletData.balance);
+                    if (connected && !hasSentData) {
+                        console.log("Sending wallet data to StartPopup:", account, balance);
                         startPopup.contentWindow.postMessage({
-                            walletAddress: walletData.account,
-                            walletBalance: walletData.balance
+                            walletAddress: account,
+                            walletBalance: balance
                         }, "*");
                         hasSentData = true;
                         localStorage.setItem('wasAuthenticated', 'true');
@@ -209,13 +200,7 @@
             startPopup.addEventListener("load", () => {
                 console.log("StartPopup loaded, sending wallet data...");
                 hasSentData = false;
-                isIframeReady = true;
-                const { walletAddress, walletBalance } = getQueryParams();
-                if (walletAddress && walletAddress !== 'null' && walletBalance && walletBalance !== 'null') {
-                    sendWalletDataToPopup({ connected: true, account: walletAddress, balance: parseFloat(walletBalance) });
-                } else {
-                    connectToMetaMask().then(data => sendWalletDataToPopup(data));
-                }
+                sendWalletDataToPopup();
             });
 
             document.getElementById('startButton').addEventListener('click', async function() {
@@ -231,27 +216,9 @@
                 }
 
                 try {
-                    const { walletAddress, walletBalance } = getQueryParams();
-                    let walletData;
-                    if (walletAddress && walletAddress !== 'null' && walletBalance && walletBalance !== 'null') {
-                        walletData = { connected: true, account: walletAddress, balance: parseFloat(walletBalance) };
-                    } else {
-                        walletData = await connectToMetaMask();
-                    }
-
-                    if (walletData.connected) {
-                        await sendWalletDataToPopup(walletData);
-                        if (!isIframeReady) {
-                            console.log("Waiting for StartPopup to be ready...");
-                            await new Promise(resolve => {
-                                const checkReady = setInterval(() => {
-                                    if (isIframeReady) {
-                                        clearInterval(checkReady);
-                                        resolve();
-                                    }
-                                }, 100);
-                            });
-                        }
+                    const { connected } = await connectToMetaMask();
+                    if (connected) {
+                        await sendWalletDataToPopup();
                         console.log("Showing StartPopup after sending wallet data");
                         startPopup.style.display = "block";
                     } else {
