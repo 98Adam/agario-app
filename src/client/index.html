@@ -192,9 +192,14 @@
                 });
             }
 
+            // Listen for messages from the popup
             window.addEventListener("message", function(event) {
                 if (event.data.action === "hideIframe") {
                     startPopup.style.display = "none";
+                } else if (event.data.walletAddress && event.data.walletBalance !== undefined) {
+                    // Log the wallet address and balance received from the startPopup
+                    console.log("Wallet Address from startPopup:", event.data.walletAddress);
+                    console.log("Wallet Balance from startPopup:", event.data.walletBalance, "USDC");
                 }
             }, false);
         });
