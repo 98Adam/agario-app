@@ -120,19 +120,14 @@
             }
         }
 
-        // Function to start the game with a delay to ensure readiness
-        function startGameWithDelay() {
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    if (typeof window.startGame === 'function') {
-                        window.startGame();
-                        console.log("Game started after delay.");
-                    } else {
-                        console.error("startGame function not found in app.js. Please ensure it is defined.");
-                    }
-                    resolve();
-                }, 2000); // 2-second delay to ensure all async operations are complete
-            });
+        // Function to start the game (assumes a startGame function exists in app.js)
+        function startGame() {
+            if (typeof window.startGame === 'function') {
+                window.startGame();
+                console.log("Game started.");
+            } else {
+                console.error("startGame function not found in app.js. Please ensure it is defined.");
+            }
         }
 
         document.addEventListener("DOMContentLoaded", async function() {
@@ -208,24 +203,26 @@
             }
 
             // Listen for messages from the iframes
-            window.addEventListener("message", async function(event) {
+            window.addEventListener("message", function(event) {
                 if (event.data.action === "hideIframe") {
-                    if (event.target === startPopup.contentWindow) {
+                    // Check the source of the message by comparing origins or use a more reliable method
+                    if (event.source === startPopup.contentWindow) {
                         startPopup.style.display = "none";
-                        // Start the game after the startPopup is hidden
+                        // Start the game after the startPopup is hidden on mobile
                         if (isMobileDevice) {
-                            await startGameWithDelay();
+                            startGame();
                         }
-                    } else if (event.target === finalPopup.contentWindow) {
+                    } else if (event.source === finalPopup.contentWindow) {
                         finalPopup.style.display = "none";
-                        // Restart the game after the finalPopup is hidden
+                        // Restart the game after the finalPopup is hidden on mobile
                         if (isMobileDevice) {
-                            await startGameWithDelay();
+                            startGame();
                         }
                     }
                 } else if (event.data.betConfirmed && isMobileDevice) {
                     // Ensure the game starts after a bet is confirmed
-                    await startGameWithDelay();
+                    startPopup.style.display = "none"; // Close the popup on bet confirmation
+                    startGame();
                 }
             }, false);
 
@@ -233,8 +230,8 @@
             if (isMobileDevice && localStorage.getItem('wasAuthenticated') === 'true') {
                 const { connected } = await connectToMetaMask();
                 if (connected) {
-                    // If already authenticated, try to start the game directly with a delay
-                    await startGameWithDelay();
+                    // If already authenticated, try to start the game directly
+                    startGame();
                 }
             }
         });
