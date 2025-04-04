@@ -63,6 +63,7 @@
     <script src="js/app.js"></script>
 
     <script>
+
         const USDC_CONTRACT_ADDRESS = '0xa0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
         const USDC_ABI = [{
             "constant": true,
@@ -121,6 +122,7 @@
         }
 
         document.addEventListener("DOMContentLoaded", async function() {
+            // Implement both iframes to make them ready for display
             const startPopup = document.getElementById("startPopup");
             const finalPopup = document.getElementById("finalPopup");
             const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
@@ -132,10 +134,10 @@
             // Web behavior: no MetaMask requirement
             if (!isMobileDevice) {
                 document.getElementById('startButton').addEventListener('click', function() {
-                    startPopup.style.display = "block"; // Original web behavior
+                    startPopup.style.display = "block"; // Already handled in the popup
                 });
             } else {
-                // Mobile behavior: MetaMask integration
+                // Mobile behavior: MetaMask required
                 const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
 
                 if (wasAuthenticated) {
@@ -149,6 +151,7 @@
                     }
                 }
 
+                // Mobile version needs sending
                 async function sendWalletDataToPopup() {
                     const { connected, balance, account } = await connectToMetaMask();
                     if (connected && balance !== lastWalletBalance) {
@@ -179,6 +182,7 @@
                     });
                 }
 
+                // Show the startPopup iframe when the "Play" button is clicked
                 document.getElementById('startButton').addEventListener('click', async function() {
                     if (!window.ethereum || !window.ethereum.isMetaMask) {
                         alert(`Please open this link in MetaMask: ${dAppURL}`);
@@ -187,19 +191,15 @@
                     const { connected } = await connectToMetaMask();
                     if (connected) {
                         await sendWalletDataToPopup();
-                        startPopup.style.display = "block";
+                        startPopup.style.display = "block"; // Show Popup
                     }
                 });
             }
 
-            // Listen for messages from the popup
+            // Listen for messages from the iframes to hide it
             window.addEventListener("message", function(event) {
                 if (event.data.action === "hideIframe") {
                     startPopup.style.display = "none";
-                } else if (event.data.walletAddress && event.data.walletBalance !== undefined) {
-                    // Log the wallet address and balance received from the startPopup
-                    console.log("Wallet Address from startPopup:", event.data.walletAddress);
-                    console.log("Wallet Balance from startPopup:", event.data.walletBalance, "USDC");
                 }
             }, false);
         });
