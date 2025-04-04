@@ -34,13 +34,9 @@
             <div id="settings">
                 <h3>Settings</h3>
                 <ul>
-                    <label><input id="visBord" type="checkbox">Show border</label>
-                    <label><input id="showMass" type="checkbox">Show mass</label>
                     <br />
                     <label><input id="continuity" type="checkbox">Continue moving even when the mouse is outside of the screen on computer</label>
                     <br />
-                    <label><input id="roundFood" type="checkbox" checked>Rounded food</label>
-                    <label><input id="darkMode" type="checkbox">Dark Mode</label>
                 </ul>
             </div>
             <div id="instructions">
@@ -97,7 +93,6 @@
             const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
             if (!provider) {
                 if (isMobileDevice) {
-                    // Removed the line that opens MetaMask app, keeping the delay
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
                 console.log("No MetaMask provider detected.");
@@ -120,16 +115,6 @@
             }
         }
 
-        // Function to start the game
-        function startGame() {
-            if (typeof window.startGame === 'function') {
-                window.startGame();
-                console.log("Game started.");
-            } else {
-                console.error("startGame function not found in app.js. Please ensure it is defined.");
-            }
-        }
-
         document.addEventListener("DOMContentLoaded", async function() {
             const startPopup = document.getElementById("startPopup");
             const finalPopup = document.getElementById("finalPopup");
@@ -139,13 +124,11 @@
             let lastWalletBalance = null;
             let hasSentData = false;
 
-            // Web behavior: no MetaMask requirement
             if (!isMobileDevice) {
                 document.getElementById('startButton').addEventListener('click', function() {
                     startPopup.style.display = "block";
                 });
             } else {
-                // Mobile behavior: MetaMask required
                 const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
 
                 if (wasAuthenticated) {
@@ -202,38 +185,22 @@
                 });
             }
 
-            // Listen for messages from the iframes
             window.addEventListener("message", function(event) {
                 if (event.data.action === "hideIframe") {
-                    // Check the source of the message by comparing origins or use
                     if (event.source === startPopup.contentWindow) {
                         startPopup.style.display = "none";
-                        // Start the game after the startPopup is hidden on mobile
-                        if (isMobileDevice) {
-                            startGame();
+                        if (!isMobileDevice) {
+                            window.startGame('player');
                         }
                     } else if (event.source === finalPopup.contentWindow) {
                         finalPopup.style.display = "none";
-                        // Restart the game after the finalPopup is hidden on mobile
-                        if (isMobileDevice) {
-                            startGame();
-                        }
+                        document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
                     }
                 } else if (event.data.betConfirmed && isMobileDevice) {
-                    // Ensure the game starts after a bet is confirmed
-                    startPopup.style.display = "none"; // Close the popup on bet confirmation
-                    startGame();
+                    startPopup.style.display = "none";
+                    window.startGame('player', event.data.betValue);
                 }
             }, false);
-
-            // On page reload, check if it should show the start menu or start the game
-            if (isMobileDevice && localStorage.getItem('wasAuthenticated') === 'true') {
-                const { connected } = await connectToMetaMask();
-                if (connected) {
-                    // If already authenticated, try to start the game directly
-                    startGame();
-                }
-            }
         });
     </script>
 </body>
