@@ -120,14 +120,19 @@
             }
         }
 
-        // Function to start the game (assumes a startGame function exists in app.js)
-        function startGame() {
-            if (typeof window.startGame === 'function') {
-                window.startGame();
-                console.log("Game started.");
-            } else {
-                console.error("startGame function not found in app.js. Please ensure it is defined.");
-            }
+        // Function to start the game with a delay to ensure readiness
+        function startGameWithDelay() {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    if (typeof window.startGame === 'function') {
+                        window.startGame();
+                        console.log("Game started after delay.");
+                    } else {
+                        console.error("startGame function not found in app.js. Please ensure it is defined.");
+                    }
+                    resolve();
+                }, 2000); // 2-second delay to ensure all async operations are complete
+            });
         }
 
         document.addEventListener("DOMContentLoaded", async function() {
@@ -203,24 +208,24 @@
             }
 
             // Listen for messages from the iframes
-            window.addEventListener("message", function(event) {
+            window.addEventListener("message", async function(event) {
                 if (event.data.action === "hideIframe") {
                     if (event.target === startPopup.contentWindow) {
                         startPopup.style.display = "none";
                         // Start the game after the startPopup is hidden
                         if (isMobileDevice) {
-                            startGame();
+                            await startGameWithDelay();
                         }
                     } else if (event.target === finalPopup.contentWindow) {
                         finalPopup.style.display = "none";
                         // Restart the game after the finalPopup is hidden
                         if (isMobileDevice) {
-                            startGame();
+                            await startGameWithDelay();
                         }
                     }
                 } else if (event.data.betConfirmed && isMobileDevice) {
                     // Ensure the game starts after a bet is confirmed
-                    startGame();
+                    await startGameWithDelay();
                 }
             }, false);
 
@@ -228,8 +233,8 @@
             if (isMobileDevice && localStorage.getItem('wasAuthenticated') === 'true') {
                 const { connected } = await connectToMetaMask();
                 if (connected) {
-                    // If already authenticated, try to start the game directly
-                    startGame();
+                    // If already authenticated, try to start the game directly with a delay
+                    await startGameWithDelay();
                 }
             }
         });
