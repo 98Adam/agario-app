@@ -30,7 +30,7 @@ window.addEventListener("message", function(event) {
         const startPopup = document.getElementById("startPopup");
         startPopup.style.display = "none";
         console.log("Selected Amount:", data.betValue);
-        window.startGame('player', data.betValue);
+        window.startGame('player', data.betValue); // Use global startGame
     } else if (data.action === "closePopup") {
         console.log("Received closePopup message from finalPopup");
         const iframe = document.getElementById("finalPopup");
@@ -41,7 +41,7 @@ window.addEventListener("message", function(event) {
 });
 
 // Define startGame and expose it globally
-window.startGame = function(type, betValue = 0) {
+window.startGame = function(type, betValue = 0) { // Default betValue to 0
     global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25);
     global.playerType = type;
 
@@ -50,7 +50,6 @@ window.startGame = function(type, betValue = 0) {
     global.betValue = betValue;
     global.hasSeenFinalPopup = false;
 
-    // Reset game state
     leaderboard = [];
     users = [];
     foods = [];
@@ -63,14 +62,12 @@ window.startGame = function(type, betValue = 0) {
 
     document.getElementById('startMenuWrapper').style.maxHeight = '0px';
     document.getElementById('gameAreaWrapper').style.opacity = 1;
-
     if (!socket) {
         socket = io({ query: "type=" + type });
         setupSocket(socket);
     }
-    if (!global.animLoopHandle) {
+    if (!global.animLoopHandle)
         animloop();
-    }
     socket.emit('respawn');
     window.chat.socket = socket;
     window.chat.registerFunctions();
@@ -159,6 +156,13 @@ window.chat = new ChatClient();
 
 var c = window.canvas.cv;
 var graph = c.getContext('2d');
+
+// Set default values for settings that were previously toggled
+global.borderDraw = global.borderDraw !== undefined ? global.borderDraw : false; // Default to false if not set
+global.toggleMassState = global.toggleMassState !== undefined ? global.toggleMassState : 0; // Default to 0
+global.backgroundColor = global.backgroundColor || '#f2fbff'; // Default background color
+global.continuity = global.continuity !== undefined ? global.continuity : false; // Default to false
+global.roundFood = global.roundFood !== undefined ? global.roundFood : true; // Default to true (as originally checked)
 
 // Event handlers for split and feed actions
 $("#feed").click(function () {
@@ -342,7 +346,7 @@ function animloop() {
 
 function gameLoop() {
     if (global.gameStart) {
-        graph.fillStyle = global.backgroundColor || '#f2fbff';
+        graph.fillStyle = global.backgroundColor;
         graph.fillRect(0, 0, global.screen.width, global.screen.height);
 
         render.drawGrid(global, player, global.screen, graph);
@@ -386,7 +390,7 @@ function gameLoop() {
             }
         }
         cellsToDraw.sort((obj1, obj2) => obj1.mass - obj2.mass);
-        render.drawCells(cellsToDraw, playerConfig, global.toggleMassState || 0, borders, graph);
+        render.drawCells(cellsToDraw, playerConfig, global.toggleMassState, borders, graph);
 
         if (global.matchStartTime) {
             const matchDuration = 20000;
