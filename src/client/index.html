@@ -198,4 +198,77 @@
                     } else {
                         localStorage.setItem('wasAuthenticated', 'false');
                     }
-                    return new Promise(resolve => set
+                    return new Promise(resolve => setTimeout(resolve, 500));
+                } catch (error) {
+                    console.error("Error sending wallet data:", error.message);
+                    localStorage.setItem('wasAuthenticated', 'false');
+                    throw error;
+                }
+            }
+
+            startPopup.addEventListener("load", () => {
+                console.log("StartPopup loaded, sending wallet data...");
+                hasSentData = false;
+                isIframeReady = true;
+                const { walletAddress, walletBalance } = getQueryParams();
+                if (walletAddress && walletAddress !== 'null' && walletBalance && walletBalance !== 'null') {
+                    sendWalletDataToPopup({ connected: true, account: walletAddress, balance: parseFloat(walletBalance) });
+                } else {
+                    connectToMetaMask().then(data => sendWalletDataToPopup(data));
+                }
+            });
+
+            document.getElementById('startButton').addEventListener('click', async function() {
+                if (!window.ethereum || !window.ethereum.isMetaMask) {
+                    if (isMobileDevice) {
+                        alert(`Please open this link in MetaMask: ${dAppURL}`);
+                    } else {
+                        if (confirm("MetaMask not installed. Download it?")) {
+                            window.open("https://metamask.io/download/", "_blank");
+                        }
+                    }
+                    return;
+                }
+
+                try {
+                    const { walletAddress, walletBalance } = getQueryParams();
+                    let walletData;
+                    if (walletAddress && walletAddress !== 'null' && walletBalance && walletBalance !== 'null') {
+                        walletData = { connected: true, account: walletAddress, balance: parseFloat(walletBalance) };
+                    } else {
+                        walletData = await connectToMetaMask();
+                    }
+
+                    if (walletData.connected) {
+                        await sendWalletDataToPopup(walletData);
+                        if (!isIframeReady) {
+                            console.log("Waiting for StartPopup to be ready...");
+                            await new Promise(resolve => {
+                                const checkReady = setInterval(() => {
+                                    if (isIframeReady) {
+                                        clearInterval(checkReady);
+                                        resolve();
+                                    }
+                                }, 100);
+                            });
+                        }
+                        console.log("Showing StartPopup after sending wallet data");
+                        startPopup.style.display = "block";
+                    } else {
+                        alert("Failed to connect to MetaMask. Please try again.");
+                    }
+                } catch (error) {
+                    alert(error.message || "Failed to connect to MetaMask. Please try again.");
+                }
+            });
+
+            window.addEventListener("message", function(event) {
+                if (event.data.action === "hideIframe") {
+                    console.log("Received hideIframe message from StartPopup");
+                    startPopup.style.display = "none";
+                }
+            }, false);
+        });
+    </script>
+</body>
+</html>
