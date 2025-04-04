@@ -105,7 +105,6 @@
             }
 
             try {
-                // Check for pending requests
                 let accounts = await provider.request({ method: "eth_accounts" });
                 if (!accounts.length) {
                     console.log("No accounts connected, requesting access...");
@@ -114,6 +113,7 @@
                 if (accounts.length > 0) {
                     const balance = await getUSDCBalance(accounts[0], provider);
                     console.log("MetaMask connected:", accounts[0], "Balance:", balance, "USDC");
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                     return { connected: true, balance: parseFloat(balance) || 0, account: accounts[0] };
                 }
                 return { connected: false, balance: 0 };
@@ -128,6 +128,15 @@
             }
         }
 
+        // Function to get query parameters
+        function getQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                walletAddress: params.get('walletAddress'),
+                walletBalance: params.get('walletBalance')
+            };
+        }
+
         document.addEventListener("DOMContentLoaded", async function() {
             const startPopup = document.getElementById("startPopup");
             const finalPopup = document.getElementById("finalPopup");
@@ -136,6 +145,7 @@
 
             let lastWalletBalance = null;
             let hasSentData = false;
+            let isIframeReady = false;
 
             const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
 
@@ -171,71 +181,21 @@
                 });
             }
 
-            async function sendWalletDataToPopup() {
+            async function sendWalletDataToPopup(walletData) {
                 try {
-                    const { connected, balance, account } = await connectToMetaMask();
-                    if (connected && balance !== lastWalletBalance) {
+                    if (walletData.connected && walletData.balance !== lastWalletBalance) {
                         hasSentData = false;
-                        lastWalletBalance = balance;
+                        lastWalletBalance = walletData.balance;
                     }
-                    if (connected && !hasSentData) {
-                        console.log("Sending wallet data to StartPopup:", account, balance);
+                    if (walletData.connected && !hasSentData) {
+                        console.log("Sending wallet data to StartPopup:", walletData.account, walletData.balance);
                         startPopup.contentWindow.postMessage({
-                            walletAddress: account,
-                            walletBalance: balance
+                            walletAddress: walletData.account,
+                            walletBalance: walletData.balance
                         }, "*");
                         hasSentData = true;
                         localStorage.setItem('wasAuthenticated', 'true');
                     } else {
                         localStorage.setItem('wasAuthenticated', 'false');
                     }
-                    return new Promise(resolve => setTimeout(resolve, 500));
-                } catch (error) {
-                    console.error("Error sending wallet data:", error.message);
-                    localStorage.setItem('wasAuthenticated', 'false');
-                    throw error;
-                }
-            }
-
-            startPopup.addEventListener("load", () => {
-                console.log("StartPopup loaded, sending wallet data...");
-                hasSentData = false;
-                sendWalletDataToPopup();
-            });
-
-            document.getElementById('startButton').addEventListener('click', async function() {
-                if (!window.ethereum || !window.ethereum.isMetaMask) {
-                    if (isMobileDevice) {
-                        alert(`Please open this link in MetaMask: ${dAppURL}`);
-                    } else {
-                        if (confirm("MetaMask not installed. Download it?")) {
-                            window.open("https://metamask.io/download/", "_blank");
-                        }
-                    }
-                    return;
-                }
-
-                try {
-                    const { connected } = await connectToMetaMask();
-                    if (connected) {
-                        await sendWalletDataToPopup();
-                        console.log("Showing StartPopup after sending wallet data");
-                        startPopup.style.display = "block";
-                    } else {
-                        alert("Failed to connect to MetaMask. Please try again.");
-                    }
-                } catch (error) {
-                    alert(error.message || "Failed to connect to MetaMask. Please try again.");
-                }
-            });
-
-            window.addEventListener("message", function(event) {
-                if (event.data.action === "hideIframe") {
-                    console.log("Received hideIframe message from StartPopup");
-                    startPopup.style.display = "none";
-                }
-            }, false);
-        });
-    </script>
-</body>
-</html>
+                    return new Promise(resolve => set
