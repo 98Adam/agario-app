@@ -41,7 +41,7 @@ window.addEventListener("message", function(event) {
 });
 
 // Define startGame and expose it globally
-window.startGame = function(type, betValue = 0) { // Default betValue to 0
+window.startGame = function(type, betValue) {
     global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25);
     global.playerType = type;
 
@@ -110,12 +110,13 @@ window.onload = function () {
         }
     }, 1000);
 
+    // Handle pressing "Enter" key to start the game
     playerNameInput.addEventListener('keypress', function (e) {
         var key = e.which || e.keyCode;
         if (key === global.KEY_ENTER) {
             if (validNick()) {
                 document.querySelector('#startMenu .input-error').style.opacity = 0;
-                startPopup.style.display = "block"; // Show popup instead of starting directly
+                startPopup.style.display = "block"; // Changed to show popup for consistency
             } else {
                 document.querySelector('#startMenu .input-error').style.opacity = 1;
             }
@@ -156,13 +157,6 @@ window.chat = new ChatClient();
 
 var c = window.canvas.cv;
 var graph = c.getContext('2d');
-
-// Set default values for settings that were previously toggled
-global.borderDraw = global.borderDraw !== undefined ? global.borderDraw : false; // Default to false if not set
-global.toggleMassState = global.toggleMassState !== undefined ? global.toggleMassState : 0; // Default to 0
-global.backgroundColor = global.backgroundColor || '#f2fbff'; // Default background color
-global.continuity = global.continuity !== undefined ? global.continuity : false; // Default to false
-global.roundFood = global.roundFood !== undefined ? global.roundFood : true; // Default to true (as originally checked)
 
 // Event handlers for split and feed actions
 $("#feed").click(function () {
@@ -216,8 +210,8 @@ function setupSocket(socket) {
     });
 
     socket.on('playerDied', (data) => {
-        const playerName = isUnnamedCell(data.playerEatenName) ? 'An unnamed cell' : data.playerEatenName;
-        window.chat.addSystemLine('{GAME} - <b>' + playerName + '</b> was eaten');
+        const player = isUnnamedCell(data.playerEatenName) ? 'An unnamed cell' : data.playerEatenName;
+        window.chat.addSystemLine('{GAME} - <b>' + player + '</b> was eaten');
     });
 
     socket.on('playerDisconnect', (data) => {
@@ -234,9 +228,15 @@ function setupSocket(socket) {
         for (var i = 0; i < leaderboard.length; i++) {
             status += '<br />';
             if (leaderboard[i].id == player.id) {
-                status += '<span class="me">' + (i + 1) + '. ' + (leaderboard[i].name || 'An unnamed cell') + "</span>";
+                if (leaderboard[i].name.length !== 0)
+                    status += '<span class="me">' + (i + 1) + '. ' + leaderboard[i].name + "</span>";
+                else
+                    status += '<span class="me">' + (i + 1) + ". An unnamed cell</span>";
             } else {
-                status += (i + 1) + '. ' + (leaderboard[i].name || 'An unnamed cell');
+                if (leaderboard[i].name.length !== 0)
+                    status += (i + 1) + '. ' + leaderboard[i].name;
+                else
+                    status += (i + 1) + '. An unnamed cell';
             }
         }
         document.getElementById('status').innerHTML = status;
@@ -287,7 +287,11 @@ function setupSocket(socket) {
         global.gameStart = false;
         global.kicked = true;
         clearTimeout(global.matchTimer);
-        render.drawErrorMessage(reason ? 'You were kicked for: ' + reason : 'You were kicked!', graph, global.screen);
+        if (reason !== '') {
+            render.drawErrorMessage('You were kicked for: ' + reason, graph, global.screen);
+        } else {
+            render.drawErrorMessage('You were kicked!', graph, global.screen);
+        }
         socket.close();
     });
 
