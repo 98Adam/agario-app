@@ -63,7 +63,7 @@
     <script src="js/app.js"></script>
 
     <script>
-
+    
         const USDC_CONTRACT_ADDRESS = '0xa0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
         const USDC_ABI = [{
             "constant": true,
@@ -73,35 +73,34 @@
             "type": "function"
         }];
 
-        // Check if multiple providers are injected and select MetaMask explicitly
         function getMetaMaskProvider() {
-            if (typeof window.ethereum !== "undefined" && window.ethereum.providers) {
-                const metamaskProvider = window.ethereum.providers.find(provider => provider.isMetaMask);
-                return metamaskProvider || null; // Return MetaMask provider or null if not found
-            } else if (typeof window.ethereum !== "undefined" && window.ethereum.isMetaMask) {
-                return window.ethereum;
+            if (typeof window.ethereum !== "undefined") {
+                if (window.ethereum.providers) {
+                    return window.ethereum.providers.find(provider => provider.isMetaMask) || window.ethereum;
+                } else if (window.ethereum.isMetaMask) {
+                    return window.ethereum;
+                }
             }
             return null;
         }
 
-        // Function to get USDC Balance
         async function getUSDCBalance(account, web3Provider) {
             if (web3Provider) {
                 const web3 = new Web3(web3Provider);
                 const contract = new web3.eth.Contract(USDC_ABI, USDC_CONTRACT_ADDRESS);
                 const balance = await contract.methods.balanceOf(account).call();
-                return web3.utils.fromWei(balance, 'mwei'); // USDC has 6 decimals
+                return web3.utils.fromWei(balance, 'mwei');
             }
             return 0;
         }
 
-        // Connect to MetaMask on mobile
-        async function connectToMetaMask() {
+        async function connectToMetaMask(isMobile = false) {
             const provider = getMetaMaskProvider();
             const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+
             if (!provider) {
-                if (isMobileDevice) {
-                    window.location.href = "metamask://"; // Prompt MetaMask app
+                if (isMobile && isMobileDevice) {
+                    window.location.href = "metamask://";
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
                 console.log("No MetaMask provider detected.");
@@ -124,37 +123,18 @@
             }
         }
 
-        // Check and connect to MetaMask on "Play" button click
-        document.addEventListener("DOMContentLoaded", async function() {
-            // Implement both iframes to make them ready for display
+        document.addEventListener("DOMContentLoaded", function() {
             const startPopup = document.getElementById("startPopup");
             const finalPopup = document.getElementById("finalPopup");
             const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
             const dAppURL = "https://agario-app-f1a9418e9c2c.herokuapp.com";
-
             let lastWalletBalance = null;
             let hasSentData = false;
 
-            // Store authentication state in localStorage
-            const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
-
-            // Attempt to reconnect to MetaMask on page load for mobile users
-            if (isMobileDevice && wasAuthenticated) {
-                const { connected, balance, account } = await connectToMetaMask();
-                if (connected) {
-                    console.log("Reconnected to MetaMask on page load:", account, balance);
-                    // Update the stored state
-                    localStorage.setItem('wasAuthenticated', 'true');
-                } else {
-                    console.log("Failed to reconnect to MetaMask on page load");
-                    localStorage.setItem('wasAuthenticated', 'false');
-                }
-            }
-
             async function sendWalletDataToPopup() {
-                const { connected, balance, account } = await connectToMetaMask();
+                const { connected, balance, account } = await connectToMetaMask(true);
                 if (connected && balance !== lastWalletBalance) {
-                    hasSentData = false; // Reset if balance changed
+                    hasSentData = false;
                     lastWalletBalance = balance;
                 }
                 if (connected && !hasSentData) {
@@ -163,46 +143,40 @@
                         walletBalance: balance
                     }, "*");
                     hasSentData = true;
-                    // Store authentication state
-                    localStorage.setItem('wasAuthenticated', 'true');
-                } else {
-                    localStorage.setItem('wasAuthenticated', 'false');
                 }
             }
 
-            startPopup.addEventListener("load", () => {
-                hasSentData = false; // Reset on popup load
-                sendWalletDataToPopup();
-            });
-
-            if (window.ethereum) {
-                window.ethereum.on('accountsChanged', () => {
+            if (isMobileDevice) {
+                startPopup.addEventListener("load", () => {
                     hasSentData = false;
                     sendWalletDataToPopup();
                 });
+
+                if (window.ethereum) {
+                    window.ethereum.on('accountsChanged', () => {
+                        hasSentData = false;
+                        sendWalletDataToPopup();
+                    });
+                }
             }
 
-            // If MetaMask is installed open game in app, if not open download page from store
             document.getElementById('startButton').addEventListener('click', async function() {
-                if (!window.ethereum || !window.ethereum.isMetaMask) {
-                    if (isMobileDevice) {
+                if (isMobileDevice) {
+                    if (!window.ethereum || !window.ethereum.isMetaMask) {
                         alert(`Please open this link in MetaMask: ${dAppURL}`);
-                    } else {
-                        if (confirm("MetaMask not installed. Download it?")) {
-                            window.open("https://metamask.io/download/", "_blank");
-                        }
+                        return;
                     }
-                    return;
-                }
-
-                const { connected } = await connectToMetaMask();
-                if (connected) {
-                    await sendWalletDataToPopup();
-                    startPopup.style.display = "block"; // Show Popup
+                    const { connected } = await connectToMetaMask(true);
+                    if (connected) {
+                        await sendWalletDataToPopup();
+                        startPopup.style.display = "block";
+                    }
+                } else {
+                    // Original web behavior
+                    startPopup.style.display = "block";
                 }
             });
 
-            // Listen for messages from the iframes to hide it
             window.addEventListener("message", function(event) {
                 if (event.data.action === "hideIframe") {
                     startPopup.style.display = "none";
