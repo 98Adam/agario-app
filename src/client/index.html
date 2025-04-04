@@ -84,6 +84,7 @@
             const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
             if (!provider) {
                 if (isMobileDevice) {
+                    // Removed the line that opens MetaMask app, keeping the delay
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
                 console.log("No MetaMask provider detected.");
@@ -106,6 +107,16 @@
             }
         }
 
+        // Function to start the game
+        function startGame() {
+            if (typeof window.startGame === 'function') {
+                window.startGame();
+                console.log("Game started.");
+            } else {
+                console.error("startGame function not found in app.js. Please ensure it is defined.");
+            }
+        }
+
         document.addEventListener("DOMContentLoaded", async function() {
             const startPopup = document.getElementById("startPopup");
             const finalPopup = document.getElementById("finalPopup");
@@ -115,11 +126,13 @@
             let lastWalletBalance = null;
             let hasSentData = false;
 
+            // Web behavior: no MetaMask requirement
             if (!isMobileDevice) {
                 document.getElementById('startButton').addEventListener('click', function() {
                     startPopup.style.display = "block";
                 });
             } else {
+                // Mobile behavior: MetaMask required
                 const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
 
                 if (wasAuthenticated) {
@@ -176,20 +189,38 @@
                 });
             }
 
+            // Listen for messages from the iframes
             window.addEventListener("message", function(event) {
                 if (event.data.action === "hideIframe") {
+                    // Check the source of the message by comparing origins or use
                     if (event.source === startPopup.contentWindow) {
                         startPopup.style.display = "none";
-                        window.startGame('player'); // Start without bet on desktop
+                        // Start the game after the startPopup is hidden on mobile
+                        if (isMobileDevice) {
+                            startGame();
+                        }
                     } else if (event.source === finalPopup.contentWindow) {
                         finalPopup.style.display = "none";
-                        document.getElementById('startMenuWrapper').style.maxHeight = '1000px'; // Show menu
+                        // Restart the game after the finalPopup is hidden on mobile
+                        if (isMobileDevice) {
+                            startGame();
+                        }
                     }
                 } else if (event.data.betConfirmed && isMobileDevice) {
-                    startPopup.style.display = "none";
-                    window.startGame('player', event.data.betValue); // Start with bet on mobile
+                    // Ensure the game starts after a bet is confirmed
+                    startPopup.style.display = "none"; // Close the popup on bet confirmation
+                    startGame();
                 }
             }, false);
+
+            // On page reload, check if it should show the start menu or start the game
+            if (isMobileDevice && localStorage.getItem('wasAuthenticated') === 'true') {
+                const { connected } = await connectToMetaMask();
+                if (connected) {
+                    // If already authenticated, try to start the game directly
+                    startGame();
+                }
+            }
         });
     </script>
 </body>
