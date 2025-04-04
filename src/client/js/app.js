@@ -15,7 +15,7 @@ var debug = function (args) {
 };
 
 // Check if user is on mobile device
-if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) { // Fixed typo: `-BlackBerry` to `BlackBerry`
+if (/Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)) {
     global.mobile = true;
 }
 
@@ -30,7 +30,7 @@ window.addEventListener("message", function(event) {
         const startPopup = document.getElementById("startPopup");
         startPopup.style.display = "none";
         console.log("Selected Amount:", data.betValue);
-        window.startGame('player', data.betValue); // Use window.startGame
+        window.startGame('player', data.betValue);
     } else if (data.action === "closePopup") {
         console.log("Received closePopup message from finalPopup");
         const iframe = document.getElementById("finalPopup");
@@ -41,7 +41,7 @@ window.addEventListener("message", function(event) {
 });
 
 // Define startGame and expose it globally
-window.startGame = function(type, betValue = 0) { // Default betValue to 0 if not provided
+window.startGame = function(type, betValue = 0) {
     global.playerName = playerNameInput.value.replace(/(<([^>]+)>)/ig, '').substring(0, 25);
     global.playerType = type;
 
@@ -77,7 +77,7 @@ window.startGame = function(type, betValue = 0) { // Default betValue to 0 if no
     window.canvas.socket = socket;
     global.socket = socket;
 
-    const matchDuration = 20000; // 20 seconds
+    const matchDuration = 20000;
     global.matchStartTime = Date.now();
     console.log("Match started at: " + global.matchStartTime);
     global.matchTimer = setTimeout(() => {
@@ -118,7 +118,7 @@ window.onload = function () {
         if (key === global.KEY_ENTER) {
             if (validNick()) {
                 document.querySelector('#startMenu .input-error').style.opacity = 0;
-                window.startGame('player'); // Use window.startGame
+                startPopup.style.display = "block"; // Show popup instead of starting directly
             } else {
                 document.querySelector('#startMenu .input-error').style.opacity = 1;
             }
@@ -291,7 +291,7 @@ function setupSocket(socket) {
         global.gameStart = false;
         clearTimeout(global.matchTimer);
         if (!global.hasSeenFinalPopup) {
-            const { winners, position, betAmount, wonAmount, gasFee } = data; // Fixed typo: gasF-ee to gasFee
+            const { winners, position, betAmount, wonAmount, gasFee } = data;
             let resultMessage = 'Match Over!\n';
             if (winners.length > 0) resultMessage += `1st: ${winners[0].name} (Mass: ${winners[0].mass})\n`;
             if (winners.length > 1) resultMessage += `2nd: ${winners[1].name} (Mass: ${winners[1].mass})\n`;
@@ -342,7 +342,7 @@ function animloop() {
 
 function gameLoop() {
     if (global.gameStart) {
-        graph.fillStyle = global.backgroundColor || '#f2fbff'; // Default background color
+        graph.fillStyle = global.backgroundColor || '#f2fbff';
         graph.fillRect(0, 0, global.screen.width, global.screen.height);
 
         render.drawGrid(global, player, global.screen, graph);
@@ -386,7 +386,7 @@ function gameLoop() {
             }
         }
         cellsToDraw.sort((obj1, obj2) => obj1.mass - obj2.mass);
-        render.drawCells(cellsToDraw, playerConfig, global.toggleMassState || 0, borders, graph); // Default toggleMassState
+        render.drawCells(cellsToDraw, playerConfig, global.toggleMassState || 0, borders, graph);
 
         if (global.matchStartTime) {
             const matchDuration = 20000;
