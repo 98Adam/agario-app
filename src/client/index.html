@@ -115,13 +115,11 @@
             let lastWalletBalance = null;
             let hasSentData = false;
 
-            // Web behavior: no MetaMask requirement
             if (!isMobileDevice) {
                 document.getElementById('startButton').addEventListener('click', function() {
                     startPopup.style.display = "block";
                 });
             } else {
-                // Mobile behavior: MetaMask required, but don't auto-start
                 const wasAuthenticated = localStorage.getItem('wasAuthenticated') === 'true';
 
                 if (wasAuthenticated) {
@@ -129,7 +127,6 @@
                     if (connected) {
                         console.log("Reconnected to MetaMask on page load:", account, balance);
                         localStorage.setItem('wasAuthenticated', 'true');
-                        // Do NOT auto-start the game here; wait for user action
                     } else {
                         console.log("Failed to reconnect to MetaMask on page load");
                         localStorage.setItem('wasAuthenticated', 'false');
@@ -179,24 +176,18 @@
                 });
             }
 
-            // Listen for messages from the iframes
             window.addEventListener("message", function(event) {
                 if (event.data.action === "hideIframe") {
                     if (event.source === startPopup.contentWindow) {
                         startPopup.style.display = "none";
-                        if (!isMobileDevice) { // Only start on desktop here
-                            window.startGame('player');
-                        }
+                        window.startGame('player'); // Start without bet on desktop
                     } else if (event.source === finalPopup.contentWindow) {
                         finalPopup.style.display = "none";
-                        if (isMobileDevice) {
-                            // Optionally restart, but for now, just show menu
-                            document.getElementById('startMenuWrapper').style.maxHeight = '1000px';
-                        }
+                        document.getElementById('startMenuWrapper').style.maxHeight = '1000px'; // Show menu
                     }
                 } else if (event.data.betConfirmed && isMobileDevice) {
                     startPopup.style.display = "none";
-                    window.startGame('player', event.data.betValue); 
+                    window.startGame('player', event.data.betValue); // Start with bet on mobile
                 }
             }, false);
         });
