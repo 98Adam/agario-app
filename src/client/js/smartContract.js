@@ -232,7 +232,7 @@ function getGameTypeString(gameTypeNumber) {
     return gameTypes[gameTypeNumber] || 'Unknown';
 }
 
-// Helper function to handle API calls with token refresh (simplified)
+// Helper function to handle API calls with token refresh 
 async function fetchWithTokenRefresh(url, options) {
     try {
         console.log(`Fetching ${url}...`);
